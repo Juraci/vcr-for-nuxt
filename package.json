@@ -1,0 +1,32 @@
+{
+  "name": "vcr-for-nuxt",
+  "version": "0.1.0",
+  "type": "module",
+  "description": "VCR record/playback for Nuxt development",
+  "main": "./dist/module.cjs",
+  "module": "./dist/module.mjs",
+  "types": "./dist/types.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/module.mjs",
+      "require": "./dist/module.cjs"
+    }
+  },
+  "scripts": {
+    "build": "nuxt-module-build build",
+    "dev": "nuxi dev playground",
+    "test": "vitest run",
+    "lint": "eslint ."
+  },
+  "devDependencies": {
+    "@nuxt/kit": "^3.0.0",
+    "@nuxt/module-builder": "^0.5.0",
+    "@nuxt/schema": "^3.0.0",
+    "nuxt": "^3.0.0",
+    "typescript": "^5.0.0",
+    "vitest": "^1.0.0"
+  },
+  "peerDependencies": {
+    "nuxt": "^3.0.0 || ^4.0.0"
+  }
+}
