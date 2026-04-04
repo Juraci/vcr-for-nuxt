@@ -1,18 +1,7 @@
 // test/filename.test.ts
 import { describe, expect, it } from 'vitest';
 
-// Inline implementations for TDD. Replaced with real imports in Task 6.
-function urlToFilename(url: string): string {
-  const path = url.replace(/^https?:\/\/[^/]+/, '');
-  return path
-    .replace(/[^a-zA-Z0-9-]/g, '_')
-    .replace(/_+/g, '_')
-    .replace(/^_|_$/g, '');
-}
-
-function methodPrefixedKey(method: string, url: string): string {
-  return `${method.toUpperCase()}_${urlToFilename(url)}`;
-}
+import { methodPrefixedKey, urlToFilename } from '../src/runtime/plugin';
 
 describe('urlToFilename', () => {
   it('strips protocol and host', () => {
