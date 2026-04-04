@@ -35,6 +35,13 @@ export default defineEventHandler(async (event) => {
     data: unknown;
   }>(event);
 
+  if (!/^[\w-]+$/.test(key)) {
+    throw createError({ statusCode: 400, message: 'Invalid cassette key' });
+  }
+  if (type !== 'graphql' && type !== 'rest') {
+    throw createError({ statusCode: 400, message: 'Invalid cassette type' });
+  }
+
   const config = useRuntimeConfig(event);
   const cassettesDir =
     (config.vcrCassettesDir as string | undefined) ?? '.cassettes';
