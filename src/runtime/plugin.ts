@@ -101,7 +101,7 @@ export default defineNuxtPlugin({
         operationName &&
         graphqlCassettes[operationName] !== undefined
       ) {
-        console.log(`[vcr][replay] ${label}`);
+        console.log(`v1. [vcr][replay] ${label}`);
         return Promise.resolve(
           new Response(JSON.stringify(graphqlCassettes[operationName]), {
             status: 200,
@@ -114,7 +114,7 @@ export default defineNuxtPlugin({
       if (!isGraphql && vcrPlayback) {
         const key = methodPrefixedKey(method, url);
         if (restCassettes[key] !== undefined) {
-          console.log(`[vcr][replay] ${label}`);
+          console.log(`v1. [vcr][replay] ${label}`);
           return Promise.resolve(
             new Response(JSON.stringify(restCassettes[key]), {
               status: 200,
