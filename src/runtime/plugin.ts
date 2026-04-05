@@ -1,4 +1,5 @@
 // src/runtime/plugin.ts
+import type { NuxtApp } from '#app';
 import { defineNuxtPlugin, useRuntimeConfig } from '#app';
 
 export function urlToFilename(url: string): string {
@@ -32,7 +33,7 @@ async function postCassette(
 
 export default defineNuxtPlugin({
   name: 'vcr-for-nuxt',
-  setup(nuxtApp) {
+  setup(nuxtApp: NuxtApp) {
     const runtimeConfig = useRuntimeConfig();
     const vcr = runtimeConfig.public.vcr as
       | { record: boolean; playback: boolean }
