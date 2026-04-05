@@ -13,6 +13,8 @@ export interface ModuleOptions {
   playback: boolean;
   /** Directory where cassette files are stored. Default: '.cassettes' */
   cassettesDir: string;
+  /** Episode name for grouping cassettes. Defaults to VCR_EPISODE env var, then dd-mm-yyyy. */
+  episode: string;
 }
 
 export default defineNuxtModule<ModuleOptions>({
@@ -25,16 +27,18 @@ export default defineNuxtModule<ModuleOptions>({
     record: process.env.VCR_RECORD === 'true',
     playback: process.env.VCR_PLAYBACK === 'true',
     cassettesDir: '.cassettes',
+    episode: process.env.VCR_EPISODE ?? '',
   },
   setup(options, nuxt) {
-    const { record, playback, cassettesDir } = options;
+    const { record, playback, cassettesDir, episode } = options;
 
     // Expose flags to the universal plugin via public runtimeConfig so the
     // plugin can read them synchronously — no boot GET request needed for flags.
     nuxt.options.runtimeConfig.public.vcr = { record, playback };
 
-    // Expose cassettesDir to Nitro server routes via private runtimeConfig.
+    // Expose cassettesDir and episode to Nitro server routes via private runtimeConfig.
     nuxt.options.runtimeConfig.vcrCassettesDir = cassettesDir;
+    nuxt.options.runtimeConfig.vcrEpisode = episode;
 
     // Nothing to register when VCR is completely inactive.
     if (!record && !playback) return;

@@ -12,15 +12,18 @@ Works with both `fetch`-based requests (including Apollo/GraphQL) and Axios (`@n
 - **Playback mode** — intercepts requests before they go out and returns the saved cassette instead. Zero network traffic.
 - **Both off** — the module is completely inert. No overhead, no code loaded.
 
-Cassettes are stored as plain JSON files, split by type:
+Cassettes are grouped into **episodes** — named snapshots stored under `.cassettes/episodes/`. The active episode is set via `VCR_EPISODE`; if omitted it defaults to today's date (`dd-mm-yyyy`).
 
 ```
 .cassettes/
-  graphql/
-    MyQuery.json          ← keyed by GraphQL operationName
-  rest/
-    GET_api_v1_users.json ← keyed by METHOD_path
-    POST_api_v1_users.json
+  episodes/
+    my-episode-01/
+      graphql/
+        MyQuery.json          ← keyed by GraphQL operationName
+      rest/
+        GET_api_v1_users.json ← keyed by METHOD_path
+        POST_api_v1_users.json
+      index.js                ← generated once; exports { graphql, rest }
 ```
 
 ---
@@ -52,17 +55,17 @@ export default defineNuxtConfig({
 Start your dev server with `VCR_RECORD=true`. Use your app normally — every JSON response is saved to disk.
 
 ```sh
-VCR_RECORD=true nuxi dev
+VCR_RECORD=true VCR_EPISODE=my-feature nuxi dev
 ```
 
-Cassettes are written to `.cassettes/` in your project root (one file per unique request).
+Cassettes are written to `.cassettes/episodes/my-feature/` in your project root (one file per unique request). When `VCR_EPISODE` is omitted, cassettes go into a directory named after today's date (e.g. `05-04-2026`).
 
 ### Replay
 
-Start with `VCR_PLAYBACK=true`. Requests are intercepted and served from disk. No network calls go out.
+Start with `VCR_PLAYBACK=true` and the same episode name used during recording. Requests are intercepted and served from disk. No network calls go out.
 
 ```sh
-VCR_PLAYBACK=true nuxi dev
+VCR_PLAYBACK=true VCR_EPISODE=my-feature nuxi dev
 ```
 
 The terminal will log each replayed request:
@@ -76,10 +79,10 @@ The terminal will log each replayed request:
 
 ```sh
 git add .cassettes/
-git commit -m "chore: record cassettes for offline dev"
+git commit -m "chore: record cassettes for my-feature episode"
 ```
 
-Teammates can then run `VCR_PLAYBACK=true nuxi dev` without needing API access or credentials.
+Teammates can then run `VCR_PLAYBACK=true VCR_EPISODE=my-feature nuxi dev` without needing API access or credentials.
 
 ---
 
@@ -93,6 +96,7 @@ Options can be set via environment variables (recommended) or in `nuxt.config.ts
 |---|---|---|
 | `VCR_RECORD` | `false` | Enable cassette recording |
 | `VCR_PLAYBACK` | `false` | Enable cassette playback |
+| `VCR_EPISODE` | today's `dd-mm-yyyy` | Episode name for grouping cassettes |
 
 ### `nuxt.config.ts`
 
@@ -101,9 +105,10 @@ export default defineNuxtConfig({
   modules: ['vcr-for-nuxt'],
 
   vcr: {
-    record: process.env.VCR_RECORD === 'true',   // default
+    record: process.env.VCR_RECORD === 'true',    // default
     playback: process.env.VCR_PLAYBACK === 'true', // default
-    cassettesDir: '.cassettes',                    // where cassettes are stored
+    cassettesDir: '.cassettes',                    // where episodes are stored
+    episode: process.env.VCR_EPISODE ?? '',        // '' = use date fallback at runtime
   },
 })
 ```
@@ -139,6 +144,18 @@ Keyed by `{METHOD}_{path}`, where the path is normalized (slashes and special ch
 | `GET /api/v1/users?page=2` | `GET_api_v1_users_page_2.json` |
 
 Only JSON responses (`content-type: application/json`) are recorded for REST.
+
+### Episode `index.js`
+
+Each episode directory contains an auto-generated `index.js` that you can import directly in Node.js scripts to load all cassettes for that episode:
+
+```js
+import cassettes from './.cassettes/episodes/my-feature/index.js';
+// cassettes.graphql → { MyQuery: { data: ... }, ... }
+// cassettes.rest    → { GET_api_v1_users: [...], ... }
+```
+
+The file is written once (on the first cassette POST) and never overwritten — safe to commit and edit manually if needed.
 
 ---
 
