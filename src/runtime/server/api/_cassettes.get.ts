@@ -1,7 +1,8 @@
 // src/runtime/server/api/_cassettes.get.ts
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
-import { createError, defineEventHandler, useRuntimeConfig } from 'h3';
+import { useRuntimeConfig } from 'nitropack/runtime';
+import { createError, defineEventHandler } from 'h3';
 
 function loadDir(dir: string): Record<string, unknown> {
   const result: Record<string, unknown> = {};

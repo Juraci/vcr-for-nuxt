@@ -1,7 +1,8 @@
 // src/runtime/server/api/_cassettes.post.ts
 import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { createError, defineEventHandler, readBody, useRuntimeConfig } from 'h3';
+import { useRuntimeConfig } from 'nitropack/runtime';
+import { createError, defineEventHandler, readBody } from 'h3';
 
 const CASSETTES_INDEX_JS = `\
 // Auto-generated — do not edit manually.
