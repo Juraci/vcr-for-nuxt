@@ -9,6 +9,9 @@
     <h2>GraphQL</h2>
     <pre>{{ graphqlData }}</pre>
     <button @click="loadGraphql">Fetch GraphQL</button>
+
+    <h2>SSR GraphQL</h2>
+    <pre>{{ ssrGraphqlData }}</pre>
   </div>
 </template>
 
@@ -46,4 +49,27 @@ async function loadGraphql() {
   });
   graphqlData.value = await res.json();
 }
+
+const { data: ssrGraphqlData } = await useAsyncData('ssr-graphql', () =>
+  fetch('https://countries.trevorblades.com/graphql', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      operationName: 'getCountryQuerySsr',
+      query: `query getCountryQuerySsr {
+  country(code: "BR") {
+    name
+    native
+    capital
+    emoji
+    currency
+    languages {
+      code
+      name
+    }
+  }
+}`,
+    }),
+  }).then((r) => r.json()),
+);
 </script>

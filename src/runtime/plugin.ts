@@ -33,7 +33,7 @@ async function postCassette(
 
 export default defineNuxtPlugin({
   name: 'vcr-for-nuxt',
-  setup(nuxtApp: NuxtApp) {
+  async setup(nuxtApp: NuxtApp) {
     const runtimeConfig = useRuntimeConfig();
     const vcr = runtimeConfig.public.vcr as { record: boolean; playback: boolean } | undefined;
     const vcrRecord = vcr?.record ?? false;
@@ -46,27 +46,40 @@ export default defineNuxtPlugin({
     // the cassette loader can use the real network fetch.
     const originalFetch = globalThis.fetch;
 
-    // Cassette store — populated async after the GET resolves.
+    // Cassette store — populated before fetch wrapper is installed.
     let graphqlCassettes: Record<string, unknown> = {};
     let restCassettes: Record<string, unknown> = {};
 
     if (vcrPlayback) {
-      originalFetch('/api/_cassettes')
-        .then((res) => res.json())
-        .then(
-          (body: {
+      if (import.meta.server) {
+        // On the server, load cassettes directly from disk — no HTTP roundtrip
+        // needed and relative URLs would fail in the Node.js process anyway.
+        const { loadEpisodeCassettes } = await import('./server/utils/cassettes');
+        const cassettesDir = runtimeConfig.vcrCassettesDir as string;
+        const episode = runtimeConfig.vcrEpisode as string;
+        try {
+          const loaded = await loadEpisodeCassettes(cassettesDir, episode);
+          graphqlCassettes = loaded.graphql;
+          restCassettes = loaded.rest;
+        } catch {
+          // cassettes dir missing or unreadable — playback silently disabled
+        }
+      } else {
+        // On the client, fetch cassettes via the dev API endpoint.
+        try {
+          const res = await originalFetch('/api/_cassettes');
+          const body = await res.json() as {
             cassettes: {
               graphql: Record<string, unknown>;
               rest: Record<string, unknown>;
             };
-          }) => {
-            graphqlCassettes = body.cassettes?.graphql ?? {};
-            restCassettes = body.cassettes?.rest ?? {};
-          },
-        )
-        .catch(() => {
+          };
+          graphqlCassettes = body.cassettes?.graphql ?? {};
+          restCassettes = body.cassettes?.rest ?? {};
+        } catch {
           // dev endpoint not available — playback silently disabled
-        });
+        }
+      }
     }
 
     // ── fetch wrapper ──────────────────────────────────────────────────────

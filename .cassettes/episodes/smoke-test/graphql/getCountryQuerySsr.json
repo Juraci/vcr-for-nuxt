@@ -1,0 +1,19 @@
+{
+  "getCountryQuerySsr": {
+    "data": {
+      "country": {
+        "native": "Brasil",
+        "capital": "Brasília",
+        "emoji": "🇧🇷",
+        "currency": "BRL",
+        "languages": [
+          {
+            "code": "pt",
+            "name": "Portuguese"
+          }
+        ],
+        "name": "Brazil"
+      }
+    }
+  }
+}
