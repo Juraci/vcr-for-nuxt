@@ -35,9 +35,7 @@ export default defineNuxtPlugin({
   name: 'vcr-for-nuxt',
   setup(nuxtApp: NuxtApp) {
     const runtimeConfig = useRuntimeConfig();
-    const vcr = runtimeConfig.public.vcr as
-      | { record: boolean; playback: boolean }
-      | undefined;
+    const vcr = runtimeConfig.public.vcr as { record: boolean; playback: boolean } | undefined;
     const vcrRecord = vcr?.record ?? false;
     const vcrPlayback = vcr?.playback ?? false;
 
@@ -72,10 +70,7 @@ export default defineNuxtPlugin({
     }
 
     // ── fetch wrapper ──────────────────────────────────────────────────────
-    globalThis.fetch = function vcrFetch(
-      input: RequestInfo | URL,
-      init?: RequestInit,
-    ) {
+    globalThis.fetch = function vcrFetch(input: RequestInfo | URL, init?: RequestInit) {
       const url = input instanceof Request ? input.url : String(input);
       const isGraphql = url.includes('/graphql');
       const method = (init?.method ?? 'GET').toUpperCase();
@@ -134,9 +129,7 @@ export default defineNuxtPlugin({
           response
             .clone()
             .json()
-            .then((data) =>
-              postCassette('graphql', opName, data, originalFetch),
-            )
+            .then((data) => postCassette('graphql', opName, data, originalFetch))
             .catch(() => {}),
         );
       }
@@ -205,9 +198,7 @@ export default defineNuxtPlugin({
           const fullUrl = url.startsWith('http') ? url : `${baseURL}${url}`;
           const method = (response.config.method ?? 'get').toUpperCase();
           const key = methodPrefixedKey(method, fullUrl);
-          postCassette('rest', key, response.data, originalFetch).catch(
-            () => {},
-          );
+          postCassette('rest', key, response.data, originalFetch).catch(() => {});
           return response;
         },
       );

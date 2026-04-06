@@ -1,10 +1,5 @@
 // src/module.ts
-import {
-  addPlugin,
-  addServerHandler,
-  createResolver,
-  defineNuxtModule,
-} from '@nuxt/kit';
+import { addPlugin, addServerHandler, createResolver, defineNuxtModule } from '@nuxt/kit';
 
 export interface ModuleOptions {
   /** Enable cassette recording. Defaults to VCR_RECORD env var. */

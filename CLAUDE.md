@@ -79,3 +79,15 @@ Integration tests use real temp directories (`os.tmpdir()`) — no mocking of fi
 | `test/episode.test.ts` | Episode name resolution (env var vs date fallback) |
 | `test/cassettes-get.test.ts` | `loadDir`, `loadEpisodeCassettes` with real FS |
 | `test/cassettes-post.test.ts` | `writeCassette` — file creation, index.js lifecycle, episode isolation |
+
+### Verification
+
+After any change it's critical to always run the following checks:
+
+`nvm use` // set the node to the correct version
+`npm install` // should install all packages without errors
+`npm run test` // all tests must pass
+`npm run lint` // there should be no lint errors
+`npm run lint:fix` // in case there are easy to fix lint errors
+`npx tsc` // there should be no typescript errors
+`npm run build` // should build without errors

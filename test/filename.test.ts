@@ -9,9 +9,7 @@ describe('urlToFilename', () => {
   });
 
   it('handles query params', () => {
-    expect(urlToFilename('https://api.doximity.com/v1/users?page=1')).toBe(
-      'v1_users_page_1',
-    );
+    expect(urlToFilename('https://api.doximity.com/v1/users?page=1')).toBe('v1_users_page_1');
   });
 
   it('handles relative paths', () => {
