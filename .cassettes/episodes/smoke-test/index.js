@@ -4,7 +4,7 @@ import { readdirSync, readFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-const __dirname = dirname(fileURLToPath(globalThis._importMeta_.url));
+const __dirname = dirname(fileURLToPath(import.meta.url));
 const cassettes = { graphql: {}, rest: {} };
 
 for (const file of readdirSync(join(__dirname, 'graphql')).filter((f) => f.endsWith('.json'))) {

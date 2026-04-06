@@ -19,7 +19,13 @@ async function postCassette(
   key: string,
   data: unknown,
   fetchFn: typeof fetch,
+  serverWriteOpts?: { cassettesDir: string; episode: string },
 ): Promise<void> {
+  if (serverWriteOpts) {
+    const { writeCassette } = await import('./server/utils/cassettes');
+    await writeCassette(serverWriteOpts.cassettesDir, serverWriteOpts.episode, type, key, data);
+    return;
+  }
   try {
     await fetchFn('/api/_cassettes', {
       method: 'POST',
@@ -82,6 +88,15 @@ export default defineNuxtPlugin({
       }
     }
 
+    // On the server, pass write options so postCassette bypasses HTTP.
+    const serverWriteOpts =
+      import.meta.server && vcrRecord
+        ? {
+            cassettesDir: runtimeConfig.vcrCassettesDir as string,
+            episode: runtimeConfig.vcrEpisode as string,
+          }
+        : undefined;
+
     // ── fetch wrapper ──────────────────────────────────────────────────────
     globalThis.fetch = function vcrFetch(input: RequestInfo | URL, init?: RequestInit) {
       const url = input instanceof Request ? input.url : String(input);
@@ -110,7 +125,7 @@ export default defineNuxtPlugin({
         operationName &&
         graphqlCassettes[operationName] !== undefined
       ) {
-        console.log(`v1. [vcr][replay] ${label}`);
+        console.log(`[vcr][replay] ${label}`);
         return Promise.resolve(
           new Response(JSON.stringify(graphqlCassettes[operationName]), {
             status: 200,
@@ -123,7 +138,7 @@ export default defineNuxtPlugin({
       if (!isGraphql && vcrPlayback) {
         const key = methodPrefixedKey(method, url);
         if (restCassettes[key] !== undefined) {
-          console.log(`v1. [vcr][replay] ${label}`);
+          console.log(`[vcr][replay] ${label}`);
           return Promise.resolve(
             new Response(JSON.stringify(restCassettes[key]), {
               status: 200,
@@ -142,7 +157,7 @@ export default defineNuxtPlugin({
           response
             .clone()
             .json()
-            .then((data) => postCassette('graphql', opName, data, originalFetch))
+            .then((data) => postCassette('graphql', opName, data, originalFetch, serverWriteOpts))
             .catch(() => {}),
         );
       }
@@ -156,7 +171,7 @@ export default defineNuxtPlugin({
           response
             .clone()
             .json()
-            .then((data) => postCassette('rest', key, data, originalFetch))
+            .then((data) => postCassette('rest', key, data, originalFetch, serverWriteOpts))
             .catch(() => {});
         });
       }
@@ -211,7 +226,7 @@ export default defineNuxtPlugin({
           const fullUrl = url.startsWith('http') ? url : `${baseURL}${url}`;
           const method = (response.config.method ?? 'get').toUpperCase();
           const key = methodPrefixedKey(method, fullUrl);
-          postCassette('rest', key, response.data, originalFetch).catch(() => {});
+          postCassette('rest', key, response.data, originalFetch, serverWriteOpts).catch(() => {});
           return response;
         },
       );
