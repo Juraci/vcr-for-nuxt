@@ -2,5 +2,6 @@ node_modules
 dist
 .nuxt
 .output
+.cassettes
 playground/.nuxt
 playground/.output
