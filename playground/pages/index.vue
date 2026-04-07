@@ -32,8 +32,8 @@ async function loadGraphql() {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       operationName: 'getCountryQuery',
-      query: `query getCountryQuery {
-  country(code: "BR") {
+      query: `query getCountryQuery($code: ID!) {
+  country(code: $code) {
     name
     native
     capital
@@ -45,6 +45,7 @@ async function loadGraphql() {
     }
   }
 }`,
+      variables: { code: 'BR' },
     }),
   });
   graphqlData.value = await res.json();
@@ -56,8 +57,8 @@ const { data: ssrGraphqlData } = await useAsyncData('ssr-graphql', () =>
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       operationName: 'getCountryQuerySsr',
-      query: `query getCountryQuerySsr {
-  country(code: "BR") {
+      query: `query getCountryQuerySsr($code: ID!) {
+  country(code: $code) {
     name
     native
     capital
@@ -69,6 +70,7 @@ const { data: ssrGraphqlData } = await useAsyncData('ssr-graphql', () =>
     }
   }
 }`,
+      variables: { code: 'BR' },
     }),
   }).then((r) => r.json()),
 );
