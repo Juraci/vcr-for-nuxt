@@ -8,7 +8,8 @@
 
     <h2>GraphQL</h2>
     <pre v-if="graphqlData" data-test-graphql-data>{{ graphqlData }}</pre>
-    <button @click="loadGraphql">Fetch GraphQL</button>
+    <button @click="loadGraphql('BR')">Fetch GraphQL with BR variable</button>
+    <button @click="loadGraphql('US')">Fetch GraphQL with US variable</button>
 
     <h2>SSR GraphQL</h2>
     <pre v-if="ssrGraphqlData" data-test-ssr-graphql-data>{{ ssrGraphqlData }}</pre>
@@ -26,7 +27,7 @@ async function loadRest() {
   restData.value = await res.json();
 }
 
-async function loadGraphql() {
+async function loadGraphql(code: string) {
   const res = await fetch('https://countries.trevorblades.com/graphql', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -45,7 +46,7 @@ async function loadGraphql() {
     }
   }
 }`,
-      variables: { code: 'BR' },
+      variables: { code },
     }),
   });
   graphqlData.value = await res.json();

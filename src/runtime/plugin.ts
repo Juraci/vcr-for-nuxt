@@ -1,6 +1,7 @@
 // src/runtime/plugin.ts
 import type { NuxtApp } from '#app';
 import { defineNuxtPlugin, useRuntimeConfig } from '#app';
+import { graphqlCassetteKey } from './graphql-key';
 
 export function urlToFilename(url: string): string {
   const path = url.replace(/^https?:\/\/[^/]+/, '');
@@ -104,6 +105,7 @@ export default defineNuxtPlugin({
       const method = (init?.method ?? 'GET').toUpperCase();
 
       let operationName: string | null = null;
+      let variables: Record<string, unknown> | null = null;
       let label = url;
 
       if (isGraphql && typeof init?.body === 'string') {
@@ -111,6 +113,7 @@ export default defineNuxtPlugin({
           const body = JSON.parse(init.body);
           if (body.operationName) {
             operationName = body.operationName;
+            variables = (body.variables as Record<string, unknown>) ?? null;
             label = `${url} (${operationName})`;
           }
         } catch {
@@ -119,19 +122,17 @@ export default defineNuxtPlugin({
       }
 
       // GraphQL playback
-      if (
-        isGraphql &&
-        vcrPlayback &&
-        operationName &&
-        graphqlCassettes[operationName] !== undefined
-      ) {
-        console.log(`[vcr][replay] ${label}`);
-        return Promise.resolve(
-          new Response(JSON.stringify(graphqlCassettes[operationName]), {
-            status: 200,
-            headers: { 'content-type': 'application/json' },
-          }),
-        );
+      if (isGraphql && vcrPlayback && operationName) {
+        const gqlKey = graphqlCassetteKey(operationName, variables);
+        if (graphqlCassettes[gqlKey] !== undefined) {
+          console.log(`[vcr][replay] ${label}`);
+          return Promise.resolve(
+            new Response(JSON.stringify(graphqlCassettes[gqlKey]), {
+              status: 200,
+              headers: { 'content-type': 'application/json' },
+            }),
+          );
+        }
       }
 
       // REST playback (fetch-based)
@@ -152,12 +153,12 @@ export default defineNuxtPlugin({
 
       // GraphQL recording
       if (isGraphql && vcrRecord && operationName) {
-        const opName = operationName;
+        const gqlKey = graphqlCassetteKey(operationName, variables);
         responsePromise.then((response) =>
           response
             .clone()
             .json()
-            .then((data) => postCassette('graphql', opName, data, originalFetch, serverWriteOpts))
+            .then((data) => postCassette('graphql', gqlKey, data, originalFetch, serverWriteOpts))
             .catch(() => {}),
         );
       }

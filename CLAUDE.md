@@ -15,7 +15,7 @@ To run a single test file:
 npx vitest run test/cassettes-post.test.ts
 ```
 
-There is no lint script configured yet.
+There is a lint script configured.
 
 ## Architecture
 
@@ -30,12 +30,18 @@ Reads `VCR_RECORD`, `VCR_PLAYBACK`, and `VCR_EPISODE` env vars at build time. Ex
 
 **2. Client Plugin (`src/runtime/plugin.ts`)**
 Wraps `globalThis.fetch` (and optionally Axios). On every request:
-- Detects GraphQL by URL pattern, keyed by `operationName`
+- Detects GraphQL by URL pattern, keyed by `graphqlCassetteKey(operationName, variables)` (see below)
 - Keys REST cassettes as `{METHOD}_{normalized_path}` (e.g. `GET_api_v1_users_1`)
 - **Playback:** Looks up in-memory cassette store loaded at plugin init via `GET /api/_cassettes`
 - **Record:** Lets real request through, clones response JSON, POSTs to `POST /api/_cassettes`
 
 URL normalization (`urlToFilename`) strips protocol/host, converts slashes and query params to underscores, collapses multiple underscores.
+
+**2a. GraphQL Key Utility (`src/runtime/graphql-key.ts`)**
+Pure module (no Nuxt imports) — usable in the plugin, server routes, and test/e2e files.
+- `graphqlCassetteKey(operationName, variables?)` — when variables are absent or empty, returns the bare `operationName`; when variables are present, returns `{operationName}__{djb2Hash(sortedVariablesJson)}` (e.g. `getCountryQuery__f252ef04`). This allows the same operation called with different variables to be stored and replayed independently.
+- `sortObjectKeys(obj)` — recursively sorts object keys before serialization so variable order does not affect the hash.
+- `djb2Hash(str)` — pure-JS djb2 hash producing an 8-character hex string; no external dependencies, runs in browser and Node.
 
 **3. Server Routes (`src/runtime/server/api/`)**
 - `_cassettes.get.ts` — Thin handler; delegates to `loadEpisodeCassettes()` from utils. 404s outside development mode.
@@ -53,9 +59,10 @@ Cassettes are grouped into **episodes** — named snapshots. The active episode 
 .cassettes/
   episodes/
     my-episode-01/
-      graphql/{operationName}.json   # keyed by GraphQL operationName
-      rest/{METHOD}_{path}.json      # e.g. GET_todos_1.json
-      index.js                       # generated once; exports { graphql, rest }
+      graphql/{operationName}.json              # no variables — keyed by bare operationName
+      graphql/{operationName}__{hash}.json      # with variables — hash of sorted variables JSON
+      rest/{METHOD}_{path}.json                 # e.g. GET_todos_1.json
+      index.js                                  # generated once; exports { graphql, rest }
 ```
 
 `index.js` is written once per episode on the first cassette POST and never overwritten. It can be imported directly in Node.js scripts to access all cassettes for that episode.
@@ -75,7 +82,7 @@ Integration tests use real temp directories (`os.tmpdir()`) — no mocking of fi
 
 | Test file | What it covers |
 |---|---|
-| `test/filename.test.ts` | URL normalization, method-prefixed key generation |
+| `test/filename.test.ts` | URL normalization, method-prefixed key generation, `graphqlCassetteKey` (variables hashing) |
 | `test/episode.test.ts` | Episode name resolution (env var vs date fallback) |
 | `test/cassettes-get.test.ts` | `loadDir`, `loadEpisodeCassettes` with real FS |
 | `test/cassettes-post.test.ts` | `writeCassette` — file creation, index.js lifecycle, episode isolation |

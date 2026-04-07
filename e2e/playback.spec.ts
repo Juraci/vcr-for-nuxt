@@ -3,18 +3,33 @@ import { rmSync, mkdirSync, writeFileSync } from 'fs';
 import { join } from 'path';
 import { ChildProcess } from 'child_process';
 import { startDevServer, stopDevServer } from './helpers/server';
+import { graphqlCassetteKey } from '../src/runtime/graphql-key';
 
 const EPISODE_NAME = 'integration-tests-playback';
 const CASSETTES_DIR = join(process.cwd(), '.cassettes');
 const EPISODE_DIR = join(CASSETTES_DIR, 'episodes', EPISODE_NAME);
 
-const COUNTRY_DATA = {
+const COUNTRY_DATA_BR = {
   native: 'Brasil',
   capital: 'Brasília',
   emoji: '🇧🇷',
   currency: 'BRL',
   languages: [{ code: 'pt', name: 'Portuguese' }],
   name: 'Brazil',
+};
+
+const COUNTRY_DATA_US = {
+  native: "United States",
+  capital: "Washington D.C.",
+  emoji: "🇺🇸",
+  currency: "USD,USN,USS",
+  languages: [
+    {
+      code: "en",
+      name: "English"
+    }
+  ],
+  name: "United States",
 };
 
 const TODO_DATA = {
@@ -29,18 +44,24 @@ function seedCassettes(seedId: string) {
   mkdirSync(join(EPISODE_DIR, 'graphql'), { recursive: true });
   mkdirSync(join(EPISODE_DIR, 'rest'), { recursive: true });
 
+  const brKey = graphqlCassetteKey('getCountryQuery', { code: 'BR' });
+  const usKey = graphqlCassetteKey('getCountryQuery', { code: 'US' });
+
   writeFileSync(
-    join(EPISODE_DIR, 'graphql', 'getCountryQueryX.json'),
-    JSON.stringify({
-      getCountryQuery: { data: { country: { ...COUNTRY_DATA, currency: seedId } } },
-    }),
+    join(EPISODE_DIR, 'graphql', `${brKey}.json`),
+    JSON.stringify({ [brKey]: { data: { country: { ...COUNTRY_DATA_BR, currency: seedId } } } }),
+  );
+
+  writeFileSync(
+    join(EPISODE_DIR, 'graphql', `${usKey}.json`),
+    JSON.stringify({ [usKey]: { data: { country: { ...COUNTRY_DATA_US, currency: seedId } } } }),
   );
 
   // Needed so the SSR call (server-side useAsyncData) is served from cassette
   writeFileSync(
     join(EPISODE_DIR, 'graphql', 'getCountryQuerySsr.json'),
     JSON.stringify({
-      getCountryQuerySsr: { data: { country: { ...COUNTRY_DATA, currency: seedId } } },
+      getCountryQuerySsr: { data: { country: { ...COUNTRY_DATA_US, currency: seedId } } },
     }),
   );
 
@@ -98,14 +119,22 @@ test('serves responses from cassettes without hitting real network', async ({ pa
   await page.waitForFunction(() => window.fetch.name === 'vcrFetch', { timeout: 30_000 });
 
   await page.getByRole('button', { name: 'Fetch REST' }).click();
-  await page.getByRole('button', { name: 'Fetch GraphQL' }).click();
-
   const restText = await page.locator('[data-test-rest-data]').innerText();
   expect(JSON.parse(restText)).toEqual({ ...TODO_DATA, userId: seedId });
 
-  const graphqlText = await page.locator('[data-test-graphql-data]').innerText();
-  expect(JSON.parse(graphqlText)).toEqual({
-    data: { country: { ...COUNTRY_DATA, currency: seedId } },
+  await page.getByRole('button', { name: 'Fetch GraphQL with BR variable' }).click();
+  const graphqlText1 = await page.locator('[data-test-graphql-data]').innerText();
+  expect(JSON.parse(graphqlText1)).toEqual({
+    data: { country: { ...COUNTRY_DATA_BR, currency: seedId } },
+  });
+
+  await page.getByRole('button', { name: 'Fetch GraphQL with US variable' }).click();
+  // The element already exists (shows BR data), so we must poll until the DOM reflects US data.
+  const graphqlLocator = page.locator('[data-test-graphql-data]');
+  await expect(graphqlLocator).toContainText('United States');
+  const graphqlText2 = await graphqlLocator.innerText();
+  expect(JSON.parse(graphqlText2)).toEqual({
+    data: { country: { ...COUNTRY_DATA_US, currency: seedId } },
   });
 
   expect(externalRequests).toHaveLength(0);

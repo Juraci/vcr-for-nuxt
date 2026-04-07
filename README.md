@@ -19,7 +19,8 @@ Cassettes are grouped into **episodes** — named snapshots stored under `.casse
   episodes/
     my-episode-01/
       graphql/
-        MyQuery.json          ← keyed by GraphQL operationName
+        MyQuery.json              ← no variables: keyed by operationName
+        MyQuery__f252ef04.json    ← with variables: operationName + hash of variables
       rest/
         GET_api_v1_users.json ← keyed by METHOD_path
         POST_api_v1_users.json
@@ -121,7 +122,9 @@ All options are optional. The env var defaults are applied automatically — you
 
 ### GraphQL
 
-Keyed by `operationName`. The cassette stores the full response body:
+Cassettes are keyed by `operationName`. When the request includes GraphQL variables, a deterministic hash of those variables is appended to the key — so the same operation called with different variables produces separate cassettes.
+
+**No variables** — key is the bare `operationName`, file is `{operationName}.json`:
 
 ```json
 {
@@ -132,6 +135,27 @@ Keyed by `operationName`. The cassette stores the full response body:
   }
 }
 ```
+
+**With variables** — key is `{operationName}__{hash}`, file is `{operationName}__{hash}.json`. For example, `getCountryQuery` called with `{ "code": "BR" }` and `{ "code": "US" }` produces two files:
+
+```
+graphql/getCountryQuery__f252ef04.json   ← variables: { code: "BR" }
+graphql/getCountryQuery__f25de732.json   ← variables: { code: "US" }
+```
+
+Each file stores the full response body under its key:
+
+```json
+{
+  "getCountryQuery__f252ef04": {
+    "data": {
+      "country": { "name": "Brazil", "capital": "Brasília" }
+    }
+  }
+}
+```
+
+Variable key order does not matter — `{ code: "BR", lang: "pt" }` and `{ lang: "pt", code: "BR" }` hash identically.
 
 ### REST
 
@@ -169,6 +193,7 @@ If your app uses `@nuxtjs/axios`, responses through `$axios` are intercepted aut
 
 - **Record and playback are mutually exclusive.** Don't set both to `true` simultaneously — you'll record and serve from disk at the same time, which produces unexpected results.
 - **GraphQL requires `operationName`.** Requests without an `operationName` in the body are passed through and not recorded. Ensure your GraphQL client sets it (Apollo does by default).
+- **GraphQL variable hashing is opaque.** Cassette filenames include a short djb2 hash of the variables (e.g. `getCountryQuery__f252ef04.json`). The hash is stable and deterministic — the same variables always produce the same filename — but not human-readable. If you need to inspect or edit a cassette for a specific variable set, record it once and locate the file by its timestamp or by the variable values inside the JSON.
 - **Cassettes load asynchronously.** On first render, a request that arrives before cassettes finish loading from disk will hit the real network. This is a one-time startup race and resolves immediately after.
 - **Dev only.** The `GET /api/_cassettes` and `POST /api/_cassettes` server routes return 404 outside `development` mode. The module is safe to deploy — it simply does nothing in production.
 
