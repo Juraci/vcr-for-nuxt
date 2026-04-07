@@ -87,6 +87,7 @@ After any change it's critical to always run the following checks:
 `nvm use` // set the node to the correct version
 `npm install` // should install all packages without errors
 `npm run test` // all tests must pass
+`npm run test:e2e` // all end 2 end tests must pass
 `npm run lint` // there should be no lint errors
 `npm run lint:fix` // in case there are easy to fix lint errors
 `npx tsc` // there should be no typescript errors

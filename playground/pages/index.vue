@@ -3,15 +3,15 @@
     <h1>vcr-for-nuxt playground</h1>
 
     <h2>REST</h2>
-    <pre>{{ restData }}</pre>
+    <pre v-if="restData" data-test-rest-data>{{ restData }}</pre>
     <button @click="loadRest">Fetch REST</button>
 
     <h2>GraphQL</h2>
-    <pre>{{ graphqlData }}</pre>
+    <pre v-if="graphqlData" data-test-graphql-data>{{ graphqlData }}</pre>
     <button @click="loadGraphql">Fetch GraphQL</button>
 
     <h2>SSR GraphQL</h2>
-    <pre>{{ ssrGraphqlData }}</pre>
+    <pre v-if="ssrGraphqlData" data-test-ssr-graphql-data>{{ ssrGraphqlData }}</pre>
   </div>
 </template>
 

@@ -5,3 +5,4 @@ dist
 .cassettes
 playground/.nuxt
 playground/.output
+test-results

@@ -74,7 +74,7 @@ export default defineNuxtPlugin({
         // On the client, fetch cassettes via the dev API endpoint.
         try {
           const res = await originalFetch('/api/_cassettes');
-          const body = await res.json() as {
+          const body = (await res.json()) as {
             cassettes: {
               graphql: Record<string, unknown>;
               rest: Record<string, unknown>;
