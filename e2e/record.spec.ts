@@ -89,11 +89,13 @@ test('records cassettes for REST and GraphQL button clicks', async ({ page }) =>
   await page.waitForFunction(() => window.fetch.name === 'vcrFetch', { timeout: 30_000 });
 
   await page.getByRole('button', { name: 'Fetch REST' }).click();
-  await page.getByRole('button', { name: 'Fetch GraphQL with BR variable' }).click();
-  await page.getByRole('button', { name: 'Fetch GraphQL with US variable' }).click();
+  await expect(page.locator('[data-test-rest-data]')).toBeVisible()
 
-  // Allow time for the plugin to POST cassettes to the server route
-  await page.waitForTimeout(1000);
+  await page.getByRole('button', { name: 'Fetch GraphQL with BR variable' }).click();
+  await expect(page.locator('[data-test-graphql-data="Brasil"]')).toBeVisible();
+
+  await page.getByRole('button', { name: 'Fetch GraphQL with US variable' }).click();
+  await expect(page.locator('[data-test-graphql-data="United States"]')).toBeVisible();
 
   const brKey = graphqlCassetteKey('getCountryQuery', { code: 'BR' });
   const usKey = graphqlCassetteKey('getCountryQuery', { code: 'US' });

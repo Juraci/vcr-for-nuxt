@@ -7,7 +7,7 @@
     <button @click="loadRest">Fetch REST</button>
 
     <h2>GraphQL</h2>
-    <pre v-if="graphqlData" data-test-graphql-data>{{ graphqlData }}</pre>
+    <pre v-if="graphqlData" :data-test-graphql-data="graphqlData.data.country.native">{{ graphqlData }}</pre>
     <button @click="loadGraphql('BR')">Fetch GraphQL with BR variable</button>
     <button @click="loadGraphql('US')">Fetch GraphQL with US variable</button>
 
