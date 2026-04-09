@@ -89,7 +89,7 @@ test('records cassettes for REST and GraphQL button clicks', async ({ page }) =>
   await page.waitForFunction(() => window.fetch.name === 'vcrFetch', { timeout: 30_000 });
 
   await page.getByRole('button', { name: 'Fetch REST' }).click();
-  await expect(page.locator('[data-test-rest-data]')).toBeVisible()
+  await expect(page.locator('[data-test-rest-data]')).toBeVisible();
 
   await page.getByRole('button', { name: 'Fetch GraphQL with BR variable' }).click();
   await expect(page.locator('[data-test-graphql-data="Brasil"]')).toBeVisible();
