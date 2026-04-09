@@ -6,7 +6,7 @@ import { loadEpisodeCassettes } from '../utils/cassettes';
 import { resolveEpisodeName } from '../utils/episode';
 
 export default defineEventHandler((event) => {
-  if (process.env.NODE_ENV !== 'development') {
+  if (!['development', 'test'].includes(process.env.NODE_ENV ?? '')) {
     throw createError({ statusCode: 404 });
   }
 

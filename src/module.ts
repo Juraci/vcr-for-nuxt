@@ -25,6 +25,9 @@ export default defineNuxtModule<ModuleOptions>({
     episode: process.env.VCR_EPISODE ?? '',
   },
   setup(options, nuxt) {
+    const allowedEnvs = ['development', 'test'];
+    if (!allowedEnvs.includes(process.env.NODE_ENV ?? '')) return;
+
     const { record, playback, cassettesDir, episode } = options;
 
     // Expose flags to the universal plugin via public runtimeConfig so the
