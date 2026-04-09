@@ -19,17 +19,17 @@ const COUNTRY_DATA_BR = {
 };
 
 const COUNTRY_DATA_US = {
-  native: "United States",
-  capital: "Washington D.C.",
-  emoji: "🇺🇸",
-  currency: "USD,USN,USS",
+  native: 'United States',
+  capital: 'Washington D.C.',
+  emoji: '🇺🇸',
+  currency: 'USD,USN,USS',
   languages: [
     {
-      code: "en",
-      name: "English"
-    }
+      code: 'en',
+      name: 'English',
+    },
   ],
-  name: "United States",
+  name: 'United States',
 };
 
 const TODO_DATA = {

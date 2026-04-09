@@ -32,17 +32,17 @@ const GRAPHQL_RESPONSE_BR = {
 const GRAPHQL_RESPONSE_US = {
   data: {
     country: {
-      native: "United States",
-      capital: "Washington D.C.",
-      emoji: "🇺🇸",
-      currency: "USD,USN,USS",
+      native: 'United States',
+      capital: 'Washington D.C.',
+      emoji: '🇺🇸',
+      currency: 'USD,USN,USS',
       languages: [
         {
-          code: "en",
-          name: "English"
-        }
+          code: 'en',
+          name: 'English',
+        },
       ],
-      name: "United States",
+      name: 'United States',
     },
   },
 };
