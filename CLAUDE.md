@@ -98,4 +98,4 @@ After any change it's critical to always run the following checks:
 `npm run lint` // there should be no lint errors
 `npm run lint:fix` // in case there are easy to fix lint errors
 `npx tsc` // there should be no typescript errors
-`npm run build` // should build without errors
+`npm run prepack` // should build without errors
