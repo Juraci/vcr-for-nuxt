@@ -47,43 +47,86 @@ describe('methodPrefixedKey', () => {
 });
 
 describe('graphqlCassetteKey', () => {
-  it('returns bare operationName when no variables provided', () => {
-    expect(graphqlCassetteKey('getCountryQuery')).toBe('getCountryQuery');
+  it('returns null when body is undefined', () => {
+    expect(graphqlCassetteKey(undefined)).toBeNull();
+  });
+
+  it('returns null when body is null', () => {
+    expect(graphqlCassetteKey(null)).toBeNull();
+  });
+
+  it('returns null when body is not a string', () => {
+    expect(graphqlCassetteKey(new Blob(['{}']))).toBeNull();
+  });
+
+  it('returns null when body is not valid JSON', () => {
+    expect(graphqlCassetteKey('not-json')).toBeNull();
+  });
+
+  it('returns null when body has no operationName', () => {
+    expect(graphqlCassetteKey(JSON.stringify({ query: '{ foo }' }))).toBeNull();
+  });
+
+  it('returns bare operationName when no variables', () => {
+    expect(
+      graphqlCassetteKey(JSON.stringify({ operationName: 'getCountryQuery' })),
+    ).toBe('getCountryQuery');
   });
 
   it('returns bare operationName for empty variables object', () => {
-    expect(graphqlCassetteKey('getCountryQuery', {})).toBe('getCountryQuery');
+    expect(
+      graphqlCassetteKey(JSON.stringify({ operationName: 'getCountryQuery', variables: {} })),
+    ).toBe('getCountryQuery');
   });
 
   it('returns bare operationName for null variables', () => {
-    expect(graphqlCassetteKey('getCountryQuery', null)).toBe('getCountryQuery');
+    expect(
+      graphqlCassetteKey(JSON.stringify({ operationName: 'getCountryQuery', variables: null })),
+    ).toBe('getCountryQuery');
   });
 
   it('appends double-underscore hash when variables are present', () => {
-    const key = graphqlCassetteKey('getCountryQuery', { code: 'BR' });
+    const key = graphqlCassetteKey(
+      JSON.stringify({ operationName: 'getCountryQuery', variables: { code: 'BR' } }),
+    );
     expect(key).toMatch(/^getCountryQuery__[0-9a-f]{8}$/);
   });
 
   it('produces the same key regardless of variable key order (determinism)', () => {
-    const key1 = graphqlCassetteKey('getUser', { id: '1', role: 'admin' });
-    const key2 = graphqlCassetteKey('getUser', { role: 'admin', id: '1' });
+    const key1 = graphqlCassetteKey(
+      JSON.stringify({ operationName: 'getUser', variables: { id: '1', role: 'admin' } }),
+    );
+    const key2 = graphqlCassetteKey(
+      JSON.stringify({ operationName: 'getUser', variables: { role: 'admin', id: '1' } }),
+    );
     expect(key1).toBe(key2);
   });
 
   it('produces different keys for different variable values', () => {
-    const brKey = graphqlCassetteKey('getCountryQuery', { code: 'BR' });
-    const usKey = graphqlCassetteKey('getCountryQuery', { code: 'US' });
+    const brKey = graphqlCassetteKey(
+      JSON.stringify({ operationName: 'getCountryQuery', variables: { code: 'BR' } }),
+    );
+    const usKey = graphqlCassetteKey(
+      JSON.stringify({ operationName: 'getCountryQuery', variables: { code: 'US' } }),
+    );
     expect(brKey).not.toBe(usKey);
   });
 
   it('produces different keys for different operationNames with the same variables', () => {
-    const key1 = graphqlCassetteKey('getCountry', { code: 'BR' });
-    const key2 = graphqlCassetteKey('getCity', { code: 'BR' });
+    const key1 = graphqlCassetteKey(
+      JSON.stringify({ operationName: 'getCountry', variables: { code: 'BR' } }),
+    );
+    const key2 = graphqlCassetteKey(
+      JSON.stringify({ operationName: 'getCity', variables: { code: 'BR' } }),
+    );
     expect(key1).not.toBe(key2);
   });
 
   it('handles nested and array variables stably', () => {
-    const vars = { filter: { ids: [1, 2, 3], active: true } };
-    expect(graphqlCassetteKey('listItems', vars)).toBe(graphqlCassetteKey('listItems', vars));
+    const body = JSON.stringify({
+      operationName: 'listItems',
+      variables: { filter: { ids: [1, 2, 3], active: true } },
+    });
+    expect(graphqlCassetteKey(body)).toBe(graphqlCassetteKey(body));
   });
 });
