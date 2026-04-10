@@ -1,6 +1,6 @@
 {
   "name": "vcr-for-nuxt",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "type": "module",
   "description": "VCR record/playback for Nuxt development",
   "module": "./dist/module.mjs",
@@ -18,14 +18,16 @@
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "format": "prettier --write .",
-    "format:check": "prettier --check ."
+    "format:check": "prettier --check .",
+    "release": "npm run lint && npm run test && npm run prepack && changelogen --release && npm publish && git push --follow-tags"
   },
   "devDependencies": {
-    "@playwright/test": "^1.49.0",
     "@eslint/js": "^10.0.1",
     "@nuxt/kit": "^4.4.2",
     "@nuxt/module-builder": "^1.0.2",
+    "@playwright/test": "^1.49.0",
     "@types/node": "^25.5.2",
+    "changelogen": "^0.6.2",
     "eslint": "^10.2.0",
     "eslint-config-prettier": "^10.1.8",
     "nuxt": "^4.4.2",
