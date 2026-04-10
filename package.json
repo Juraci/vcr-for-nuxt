@@ -3,6 +3,19 @@
   "version": "0.1.3",
   "type": "module",
   "description": "VCR record/playback for Nuxt development",
+  "keywords": [
+    "frontend",
+    "test",
+    "graphql",
+    "rest",
+    "mocking",
+    "API",
+    "VCR",
+    "record",
+    "playback",
+    "offline",
+    "network"
+  ],
   "module": "./dist/module.mjs",
   "exports": {
     ".": {
