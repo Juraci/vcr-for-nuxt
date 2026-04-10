@@ -1,6 +1,24 @@
 # Changelog
 
 
+## v0.1.5
+
+[compare changes](https://github.com/Juraci/vcr-for-nuxt/compare/v0.1.4...v0.1.5)
+
+### 💅 Refactors
+
+- **graphql-key:** Move body parsing into graphqlCassetteKey ([ba19c33](https://github.com/Juraci/vcr-for-nuxt/commit/ba19c33))
+- **plugin:** Simplify fetch wrapper using new graphqlCassetteKey API ([65fc7c0](https://github.com/Juraci/vcr-for-nuxt/commit/65fc7c0))
+
+### ✅ Tests
+
+- **graphql-key:** Update tests for new body-based graphqlCassetteKey API ([199bf56](https://github.com/Juraci/vcr-for-nuxt/commit/199bf56))
+- **graphql-key:** Fix Blob test, tautology, add empty operationName case ([ead4224](https://github.com/Juraci/vcr-for-nuxt/commit/ead4224))
+
+### ❤️ Contributors
+
+- Juraci ([@Juraci](https://github.com/Juraci))
+
 ## v0.1.4
 
 [compare changes](https://github.com/Juraci/vcr-for-nuxt/compare/v0.1.3...v0.1.4)
