@@ -14,7 +14,20 @@ export function djb2Hash(str) {
   }
   return (hash >>> 0).toString(16).padStart(8, "0");
 }
-export function graphqlCassetteKey(operationName, variables) {
+function buildKey(operationName, variables) {
   if (!variables || Object.keys(variables).length === 0) return operationName;
   return `${operationName}__${djb2Hash(JSON.stringify(sortObjectKeys(variables)))}`;
+}
+export function graphqlCassetteKey(body) {
+  if (typeof body !== "string") return null;
+  let parsed;
+  try {
+    parsed = JSON.parse(body);
+  } catch {
+    return null;
+  }
+  const operationName = parsed.operationName;
+  if (typeof operationName !== "string" || !operationName) return null;
+  const variables = parsed.variables ?? null;
+  return buildKey(operationName, variables);
 }

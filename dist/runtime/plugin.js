@@ -62,22 +62,9 @@ export default defineNuxtPlugin({
       const url = input instanceof Request ? input.url : String(input);
       const isGraphql = url.includes("/graphql");
       const method = (init?.method ?? "GET").toUpperCase();
-      let operationName = null;
-      let variables = null;
-      let label = url;
-      if (isGraphql && typeof init?.body === "string") {
-        try {
-          const body = JSON.parse(init.body);
-          if (body.operationName) {
-            operationName = body.operationName;
-            variables = body.variables ?? null;
-            label = `${url} (${operationName})`;
-          }
-        } catch {
-        }
-      }
-      if (isGraphql && vcrPlayback && operationName) {
-        const gqlKey = graphqlCassetteKey(operationName, variables);
+      const gqlKey = isGraphql ? graphqlCassetteKey(init?.body) : null;
+      const label = gqlKey ? `${url} (${gqlKey})` : url;
+      if (gqlKey && vcrPlayback) {
         if (graphqlCassettes[gqlKey] !== void 0) {
           console.log(`[vcr][replay] ${label}`);
           return Promise.resolve(
@@ -101,8 +88,7 @@ export default defineNuxtPlugin({
         }
       }
       const responsePromise = originalFetch(input, init);
-      if (isGraphql && vcrRecord && operationName) {
-        const gqlKey = graphqlCassetteKey(operationName, variables);
+      if (gqlKey && vcrRecord) {
         responsePromise.then(
           (response) => response.clone().json().then((data) => postCassette("graphql", gqlKey, data, originalFetch, serverWriteOpts)).catch(() => {
           })
