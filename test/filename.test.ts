@@ -56,7 +56,7 @@ describe('graphqlCassetteKey', () => {
   });
 
   it('returns null when body is not a string', () => {
-    expect(graphqlCassetteKey(new Blob(['{}']))).toBeNull();
+    expect(graphqlCassetteKey(42 as unknown as BodyInit)).toBeNull();
   });
 
   it('returns null when body is not valid JSON', () => {
@@ -65,6 +65,10 @@ describe('graphqlCassetteKey', () => {
 
   it('returns null when body has no operationName', () => {
     expect(graphqlCassetteKey(JSON.stringify({ query: '{ foo }' }))).toBeNull();
+  });
+
+  it('returns null when operationName is an empty string', () => {
+    expect(graphqlCassetteKey(JSON.stringify({ operationName: '' }))).toBeNull();
   });
 
   it('returns bare operationName when no variables', () => {
@@ -123,10 +127,14 @@ describe('graphqlCassetteKey', () => {
   });
 
   it('handles nested and array variables stably', () => {
-    const body = JSON.stringify({
+    const body1 = JSON.stringify({
+      operationName: 'listItems',
+      variables: { filter: { active: true, ids: [1, 2, 3] } },
+    });
+    const body2 = JSON.stringify({
       operationName: 'listItems',
       variables: { filter: { ids: [1, 2, 3], active: true } },
     });
-    expect(graphqlCassetteKey(body)).toBe(graphqlCassetteKey(body));
+    expect(graphqlCassetteKey(body1)).toBe(graphqlCassetteKey(body2));
   });
 });
