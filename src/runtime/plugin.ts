@@ -104,25 +104,12 @@ export default defineNuxtPlugin({
       const isGraphql = url.includes('/graphql');
       const method = (init?.method ?? 'GET').toUpperCase();
 
-      let operationName: string | null = null;
-      let label = url;
-
-      if (isGraphql && typeof init?.body === 'string') {
-        try {
-          const body = JSON.parse(init.body);
-          if (body.operationName) {
-            operationName = body.operationName;
-            label = `${url} (${operationName})`;
-          }
-        } catch {
-          // non-JSON body — skip
-        }
-      }
+      const gqlKey = isGraphql ? graphqlCassetteKey(init?.body) : null;
+      const label = gqlKey ? `${url} (${gqlKey})` : url;
 
       // GraphQL playback
-      if (isGraphql && vcrPlayback && operationName) {
-        const gqlKey = graphqlCassetteKey(init?.body);
-        if (gqlKey && graphqlCassettes[gqlKey] !== undefined) {
+      if (gqlKey && vcrPlayback) {
+        if (graphqlCassettes[gqlKey] !== undefined) {
           console.log(`[vcr][replay] ${label}`);
           return Promise.resolve(
             new Response(JSON.stringify(graphqlCassettes[gqlKey]), {
@@ -150,17 +137,14 @@ export default defineNuxtPlugin({
       const responsePromise = originalFetch(input, init);
 
       // GraphQL recording
-      if (isGraphql && vcrRecord && operationName) {
-        const gqlKey = graphqlCassetteKey(init?.body);
-        if (gqlKey) {
-          responsePromise.then((response) =>
-            response
-              .clone()
-              .json()
-              .then((data) => postCassette('graphql', gqlKey, data, originalFetch, serverWriteOpts))
-              .catch(() => {}),
-          );
-        }
+      if (gqlKey && vcrRecord) {
+        responsePromise.then((response) =>
+          response
+            .clone()
+            .json()
+            .then((data) => postCassette('graphql', gqlKey, data, originalFetch, serverWriteOpts))
+            .catch(() => {}),
+        );
       }
 
       // REST recording (fetch-based, JSON only)
