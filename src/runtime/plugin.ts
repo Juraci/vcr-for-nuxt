@@ -105,7 +105,6 @@ export default defineNuxtPlugin({
       const method = (init?.method ?? 'GET').toUpperCase();
 
       let operationName: string | null = null;
-      let variables: Record<string, unknown> | null = null;
       let label = url;
 
       if (isGraphql && typeof init?.body === 'string') {
@@ -113,7 +112,6 @@ export default defineNuxtPlugin({
           const body = JSON.parse(init.body);
           if (body.operationName) {
             operationName = body.operationName;
-            variables = (body.variables as Record<string, unknown>) ?? null;
             label = `${url} (${operationName})`;
           }
         } catch {
@@ -123,8 +121,8 @@ export default defineNuxtPlugin({
 
       // GraphQL playback
       if (isGraphql && vcrPlayback && operationName) {
-        const gqlKey = graphqlCassetteKey(operationName, variables);
-        if (graphqlCassettes[gqlKey] !== undefined) {
+        const gqlKey = graphqlCassetteKey(init?.body);
+        if (gqlKey && graphqlCassettes[gqlKey] !== undefined) {
           console.log(`[vcr][replay] ${label}`);
           return Promise.resolve(
             new Response(JSON.stringify(graphqlCassettes[gqlKey]), {
@@ -153,14 +151,16 @@ export default defineNuxtPlugin({
 
       // GraphQL recording
       if (isGraphql && vcrRecord && operationName) {
-        const gqlKey = graphqlCassetteKey(operationName, variables);
-        responsePromise.then((response) =>
-          response
-            .clone()
-            .json()
-            .then((data) => postCassette('graphql', gqlKey, data, originalFetch, serverWriteOpts))
-            .catch(() => {}),
-        );
+        const gqlKey = graphqlCassetteKey(init?.body);
+        if (gqlKey) {
+          responsePromise.then((response) =>
+            response
+              .clone()
+              .json()
+              .then((data) => postCassette('graphql', gqlKey, data, originalFetch, serverWriteOpts))
+              .catch(() => {}),
+          );
+        }
       }
 
       // REST recording (fetch-based, JSON only)

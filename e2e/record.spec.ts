@@ -97,8 +97,12 @@ test('records cassettes for REST and GraphQL button clicks', async ({ page }) =>
   await page.getByRole('button', { name: 'Fetch GraphQL with US variable' }).click();
   await expect(page.locator('[data-test-graphql-data="United States"]')).toBeVisible();
 
-  const brKey = graphqlCassetteKey('getCountryQuery', { code: 'BR' });
-  const usKey = graphqlCassetteKey('getCountryQuery', { code: 'US' });
+  const brKey = graphqlCassetteKey(
+    JSON.stringify({ operationName: 'getCountryQuery', variables: { code: 'BR' } }),
+  ) as string;
+  const usKey = graphqlCassetteKey(
+    JSON.stringify({ operationName: 'getCountryQuery', variables: { code: 'US' } }),
+  ) as string;
 
   expect(existsSync(join(EPISODE_DIR, 'rest', 'GET_todos_1.json'))).toBe(true);
   expect(existsSync(join(EPISODE_DIR, 'graphql', `${brKey}.json`))).toBe(true);

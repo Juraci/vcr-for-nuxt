@@ -72,9 +72,9 @@ describe('graphqlCassetteKey', () => {
   });
 
   it('returns bare operationName when no variables', () => {
-    expect(
-      graphqlCassetteKey(JSON.stringify({ operationName: 'getCountryQuery' })),
-    ).toBe('getCountryQuery');
+    expect(graphqlCassetteKey(JSON.stringify({ operationName: 'getCountryQuery' }))).toBe(
+      'getCountryQuery',
+    );
   });
 
   it('returns bare operationName for empty variables object', () => {

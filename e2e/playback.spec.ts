@@ -44,8 +44,12 @@ function seedCassettes(seedId: string) {
   mkdirSync(join(EPISODE_DIR, 'graphql'), { recursive: true });
   mkdirSync(join(EPISODE_DIR, 'rest'), { recursive: true });
 
-  const brKey = graphqlCassetteKey('getCountryQuery', { code: 'BR' });
-  const usKey = graphqlCassetteKey('getCountryQuery', { code: 'US' });
+  const brKey = graphqlCassetteKey(
+    JSON.stringify({ operationName: 'getCountryQuery', variables: { code: 'BR' } }),
+  ) as string;
+  const usKey = graphqlCassetteKey(
+    JSON.stringify({ operationName: 'getCountryQuery', variables: { code: 'US' } }),
+  ) as string;
 
   writeFileSync(
     join(EPISODE_DIR, 'graphql', `${brKey}.json`),
