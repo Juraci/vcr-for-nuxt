@@ -1,0 +1,12 @@
+{
+  "name": "vcr-for-nuxt",
+  "configKey": "vcr",
+  "compatibility": {
+    "nuxt": ">=3.0.0"
+  },
+  "version": "0.1.2",
+  "builder": {
+    "@nuxt/module-builder": "1.0.2",
+    "unbuild": "unknown"
+  }
+}
