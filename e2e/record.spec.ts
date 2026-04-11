@@ -59,7 +59,7 @@ test.beforeAll(async () => {
 
 test.afterAll(() => stopDevServer(server));
 
-test('records cassettes for REST and GraphQL button clicks', async ({ page }) => {
+test('records cassettes for REST and GraphQL api calls', async ({ page }) => {
   const seedId: string = crypto.randomUUID();
   await page.route('https://jsonplaceholder.typicode.com/todos/1', (route) =>
     route.fulfill({ json: { ...REST_RESPONSE, userId: seedId } }),
@@ -103,16 +103,23 @@ test('records cassettes for REST and GraphQL button clicks', async ({ page }) =>
   const usKey = graphqlCassetteKey(
     JSON.stringify({ operationName: 'getCountryQuery', variables: { code: 'US' } }),
   ) as string;
+  const ssrBrKey = graphqlCassetteKey(
+    JSON.stringify({ operationName: 'getCountryQuerySsr', variables: { code: 'BR' } }),
+  ) as string;
 
+  // Verify cassette files exist
   expect(existsSync(join(EPISODE_DIR, 'rest', 'GET_todos_1.json'))).toBe(true);
   expect(existsSync(join(EPISODE_DIR, 'graphql', `${brKey}.json`))).toBe(true);
   expect(existsSync(join(EPISODE_DIR, 'graphql', `${usKey}.json`))).toBe(true);
+  expect(existsSync(join(EPISODE_DIR, 'graphql', `${ssrBrKey}.json`))).toBe(true);
 
+  // Verify REST cassette content
   const restCassette = JSON.parse(
     readFileSync(join(EPISODE_DIR, 'rest', 'GET_todos_1.json'), 'utf-8'),
   );
   expect(restCassette).toEqual({ GET_todos_1: { ...REST_RESPONSE, userId: seedId } });
 
+  // Verify GraphQL first call cassette content
   const brCassette = JSON.parse(
     readFileSync(join(EPISODE_DIR, 'graphql', `${brKey}.json`), 'utf-8'),
   );
@@ -123,6 +130,7 @@ test('records cassettes for REST and GraphQL button clicks', async ({ page }) =>
     },
   });
 
+  // Verify GraphQL second call cassette content
   const usCassette = JSON.parse(
     readFileSync(join(EPISODE_DIR, 'graphql', `${usKey}.json`), 'utf-8'),
   );
@@ -132,4 +140,12 @@ test('records cassettes for REST and GraphQL button clicks', async ({ page }) =>
       data: { country: { ...GRAPHQL_RESPONSE_US.data.country, currency: seedId } },
     },
   });
+
+  // Verify GraphQL SSR call cassette content
+  // This graphql request is hitting a real API, hence no seed Id
+  // This is a limitation I can tolerate for now, mocking this SSR call would require a nodejs server
+  const ssrBrCassette = JSON.parse(
+    readFileSync(join(EPISODE_DIR, 'graphql', `${ssrBrKey}.json`), 'utf-8'),
+  );
+  expect(ssrBrCassette).toEqual({ [ssrBrKey]: GRAPHQL_RESPONSE_BR });
 });

@@ -50,6 +50,9 @@ function seedCassettes(seedId: string) {
   const usKey = graphqlCassetteKey(
     JSON.stringify({ operationName: 'getCountryQuery', variables: { code: 'US' } }),
   ) as string;
+  const ssrBrKey = graphqlCassetteKey(
+    JSON.stringify({ operationName: 'getCountryQuerySsr', variables: { code: 'BR' } }),
+  ) as string;
 
   writeFileSync(
     join(EPISODE_DIR, 'graphql', `${brKey}.json`),
@@ -61,11 +64,10 @@ function seedCassettes(seedId: string) {
     JSON.stringify({ [usKey]: { data: { country: { ...COUNTRY_DATA_US, currency: seedId } } } }),
   );
 
-  // Needed so the SSR call (server-side useAsyncData) is served from cassette
   writeFileSync(
-    join(EPISODE_DIR, 'graphql', 'getCountryQuerySsr.json'),
+    join(EPISODE_DIR, 'graphql', `${ssrBrKey}.json`),
     JSON.stringify({
-      getCountryQuerySsr: { data: { country: { ...COUNTRY_DATA_US, currency: seedId } } },
+      [ssrBrKey]: { data: { country: { ...COUNTRY_DATA_BR, currency: seedId } } },
     }),
   );
 
@@ -107,6 +109,8 @@ test.afterAll(async () => {
 
 test('serves responses from cassettes without hitting real network', async ({ page }) => {
   const externalRequests: string[] = [];
+  let graphqlLocator: ReturnType<typeof page.locator>;
+  let graphqlText: string;
 
   page.on('request', (req) => {
     const url = req.url();
@@ -122,23 +126,35 @@ test('serves responses from cassettes without hitting real network', async ({ pa
   // Wait until the VCR plugin has installed its fetch wrapper — confirms hydration is done
   await page.waitForFunction(() => window.fetch.name === 'vcrFetch', { timeout: 30_000 });
 
+  // Verify REST API call playback
   await page.getByRole('button', { name: 'Fetch REST' }).click();
   const restText = await page.locator('[data-test-rest-data]').innerText();
   expect(JSON.parse(restText)).toEqual({ ...TODO_DATA, userId: seedId });
 
+  // Verify GraphQL API call playback for BR variable
   await page.getByRole('button', { name: 'Fetch GraphQL with BR variable' }).click();
-  const graphqlText1 = await page.locator('[data-test-graphql-data]').innerText();
-  expect(JSON.parse(graphqlText1)).toEqual({
+  graphqlLocator = page.locator('[data-test-graphql-data]');
+  await expect(graphqlLocator).toContainText('Brasil');
+  graphqlText = await graphqlLocator.innerText();
+  expect(JSON.parse(graphqlText)).toEqual({
     data: { country: { ...COUNTRY_DATA_BR, currency: seedId } },
   });
 
+  // Verify GraphQL API call playback for US variable
   await page.getByRole('button', { name: 'Fetch GraphQL with US variable' }).click();
-  // The element already exists (shows BR data), so we must poll until the DOM reflects US data.
-  const graphqlLocator = page.locator('[data-test-graphql-data]');
+  graphqlLocator = page.locator('[data-test-graphql-data]');
   await expect(graphqlLocator).toContainText('United States');
-  const graphqlText2 = await graphqlLocator.innerText();
-  expect(JSON.parse(graphqlText2)).toEqual({
+  graphqlText = await graphqlLocator.innerText();
+  expect(JSON.parse(graphqlText)).toEqual({
     data: { country: { ...COUNTRY_DATA_US, currency: seedId } },
+  });
+
+  // Verify GraphQL API call playback for SSR BR variable
+  graphqlLocator = page.locator('[data-test-ssr-graphql-data]');
+  await expect(graphqlLocator).toContainText('Brasil');
+  graphqlText = await graphqlLocator.innerText();
+  expect(JSON.parse(graphqlText)).toEqual({
+    data: { country: { ...COUNTRY_DATA_BR, currency: seedId } },
   });
 
   expect(externalRequests).toHaveLength(0);
