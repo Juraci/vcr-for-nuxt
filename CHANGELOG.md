@@ -1,6 +1,18 @@
 # Changelog
 
 
+## v0.1.7
+
+[compare changes](https://github.com/Juraci/vcr-for-nuxt/compare/v0.1.6...v0.1.7)
+
+### ✅ Tests
+
+- **e2e:** Extend SSR GraphQL coverage with variable-hashed cassette keys ([9bfe29b](https://github.com/Juraci/vcr-for-nuxt/commit/9bfe29b))
+
+### ❤️ Contributors
+
+- Juraci ([@Juraci](https://github.com/Juraci))
+
 ## v0.1.6
 
 [compare changes](https://github.com/Juraci/vcr-for-nuxt/compare/v0.1.5...v0.1.6)
