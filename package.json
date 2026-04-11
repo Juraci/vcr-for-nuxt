@@ -1,6 +1,6 @@
 {
   "name": "vcr-for-nuxt",
-  "version": "0.1.7",
+  "version": "0.1.8",
   "type": "module",
   "description": "VCR record/playback for Nuxt development",
   "keywords": [
