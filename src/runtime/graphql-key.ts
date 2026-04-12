@@ -26,6 +26,10 @@ function buildKey(operationName: string, variables: Record<string, unknown> | nu
   return `${operationName}__${djb2Hash(JSON.stringify(sortObjectKeys(variables)))}`;
 }
 
+function extractQueryName(query: string): string | null {
+  return query?.match(/\w+\s+(?<queryName>\w+)\(/)?.groups?.queryName ?? null;
+}
+
 export function graphqlCassetteKey(body?: BodyInit | null): string | null {
   if (typeof body !== 'string') return null;
   let parsed: Record<string, unknown>;
@@ -34,8 +38,9 @@ export function graphqlCassetteKey(body?: BodyInit | null): string | null {
   } catch {
     return null;
   }
-  const operationName = parsed.operationName;
-  if (typeof operationName !== 'string' || !operationName) return null;
+  const operationName = typeof parsed.operationName === 'string' ? parsed.operationName : null;
+  const queryName = operationName || extractQueryName(parsed.query as string);
+  if (!queryName) return null;
   const variables = (parsed.variables as Record<string, unknown>) ?? null;
-  return buildKey(operationName, variables);
+  return buildKey(queryName, variables);
 }

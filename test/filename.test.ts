@@ -63,8 +63,19 @@ describe('graphqlCassetteKey', () => {
     expect(graphqlCassetteKey('not-json')).toBeNull();
   });
 
-  it('returns null when body has no operationName', () => {
-    expect(graphqlCassetteKey(JSON.stringify({ query: '{ foo }' }))).toBeNull();
+  describe('when there is no operationName', () => {
+    it('returns the query portion extracted with regex', () => {
+      const namelessQuery = `query getMyCountry($code: ID!) {
+        country(code: $code) {
+          name
+        }
+      }`;
+      const key = graphqlCassetteKey(
+        JSON.stringify({ query: namelessQuery, variables: { code: 'US' } }),
+      );
+
+      expect(key).toMatch(/^getMyCountry__[0-9a-f]{8}$/);
+    });
   });
 
   it('returns null when operationName is an empty string', () => {

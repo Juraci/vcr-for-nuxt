@@ -39,7 +39,7 @@ URL normalization (`urlToFilename`) strips protocol/host, converts slashes and q
 
 **2a. GraphQL Key Utility (`src/runtime/graphql-key.ts`)**
 Pure module (no Nuxt imports) — usable in the plugin, server routes, and test/e2e files.
-- `graphqlCassetteKey(operationName, variables?)` — when variables are absent or empty, returns the bare `operationName`; when variables are present, returns `{operationName}__{djb2Hash(sortedVariablesJson)}` (e.g. `getCountryQuery__f252ef04`). This allows the same operation called with different variables to be stored and replayed independently.
+- `graphqlCassetteKey(body?)` — accepts a raw `BodyInit | null` request body string. Resolves the operation name from `parsed.operationName` first; if absent, falls back to extracting it via regex from `parsed.query`. Returns null if no name can be determined. When variables are absent or empty, returns the bare operation name; when variables are present, returns `{operationName}__{djb2Hash(sortedVariablesJson)}` (e.g. `getCountryQuery__f252ef04`). This allows the same operation called with different variables to be stored and replayed independently.
 - `sortObjectKeys(obj)` — recursively sorts object keys before serialization so variable order does not affect the hash.
 - `djb2Hash(str)` — pure-JS djb2 hash producing an 8-character hex string; no external dependencies, runs in browser and Node.
 

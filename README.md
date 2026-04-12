@@ -192,7 +192,7 @@ If your app uses `@nuxtjs/axios`, responses through `$axios` are intercepted aut
 ## Caveats
 
 - **Record and playback are mutually exclusive.** Don't set both to `true` simultaneously — you'll record and serve from disk at the same time, which produces unexpected results.
-- **GraphQL requires `operationName`.** Requests without an `operationName` in the body are passed through and not recorded. Ensure your GraphQL client sets it (Apollo does by default).
+- **GraphQL key resolution.** The module first reads `operationName` from the request body. If it is absent, it falls back to extracting the name from the `query` string via regex (e.g. `query getMyCountry(...)`). Requests where neither yields a name are passed through and not recorded. Setting `operationName` explicitly (Apollo does by default) is always the most reliable approach.
 - **GraphQL variable hashing is opaque.** Cassette filenames include a short djb2 hash of the variables (e.g. `getCountryQuery__f252ef04.json`). The hash is stable and deterministic — the same variables always produce the same filename — but not human-readable. If you need to inspect or edit a cassette for a specific variable set, record it once and locate the file by its timestamp or by the variable values inside the JSON.
 - **Cassettes load asynchronously.** On first render, a request that arrives before cassettes finish loading from disk will hit the real network. This is a one-time startup race and resolves immediately after.
 - **Dev only.** The `GET /api/_cassettes` and `POST /api/_cassettes` server routes return 404 outside `development` mode. The module is safe to deploy — it simply does nothing in production.

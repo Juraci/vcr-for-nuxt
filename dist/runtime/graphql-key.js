@@ -18,6 +18,9 @@ function buildKey(operationName, variables) {
   if (!variables || Object.keys(variables).length === 0) return operationName;
   return `${operationName}__${djb2Hash(JSON.stringify(sortObjectKeys(variables)))}`;
 }
+function extractQueryName(query) {
+  return query?.match(/\w+\s+(?<queryName>\w+)\(/)?.groups?.queryName ?? null;
+}
 export function graphqlCassetteKey(body) {
   if (typeof body !== "string") return null;
   let parsed;
@@ -26,8 +29,9 @@ export function graphqlCassetteKey(body) {
   } catch {
     return null;
   }
-  const operationName = parsed.operationName;
-  if (typeof operationName !== "string" || !operationName) return null;
+  const operationName = typeof parsed.operationName === "string" ? parsed.operationName : null;
+  const queryName = operationName || extractQueryName(parsed.query);
+  if (!queryName) return null;
   const variables = parsed.variables ?? null;
-  return buildKey(operationName, variables);
+  return buildKey(queryName, variables);
 }

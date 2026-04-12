@@ -39,6 +39,20 @@ const TODO_DATA = {
   completed: false,
 };
 
+const NAMELESS_GRAPHQL_QUERY = `query getMyCountry($code: ID!) {
+  country(code: $code) {
+    name
+    native
+    capital
+    emoji
+    currency
+    languages {
+      code
+      name
+    }
+  }
+}`;
+
 function seedCassettes(seedId: string) {
   rmSync(CASSETTES_DIR, { recursive: true, force: true });
   mkdirSync(join(EPISODE_DIR, 'graphql'), { recursive: true });
@@ -52,6 +66,9 @@ function seedCassettes(seedId: string) {
   ) as string;
   const ssrBrKey = graphqlCassetteKey(
     JSON.stringify({ operationName: 'getCountryQuerySsr', variables: { code: 'BR' } }),
+  ) as string;
+  const namelessKey = graphqlCassetteKey(
+    JSON.stringify({ query: NAMELESS_GRAPHQL_QUERY, variables: { code: 'US' } }),
   ) as string;
 
   writeFileSync(
@@ -68,6 +85,13 @@ function seedCassettes(seedId: string) {
     join(EPISODE_DIR, 'graphql', `${ssrBrKey}.json`),
     JSON.stringify({
       [ssrBrKey]: { data: { country: { ...COUNTRY_DATA_BR, currency: seedId } } },
+    }),
+  );
+
+  writeFileSync(
+    join(EPISODE_DIR, 'graphql', `${namelessKey}.json`),
+    JSON.stringify({
+      [namelessKey]: { data: { country: { ...COUNTRY_DATA_US, currency: seedId } } },
     }),
   );
 
@@ -131,6 +155,15 @@ test('serves responses from cassettes without hitting real network', async ({ pa
   const restText = await page.locator('[data-test-rest-data]').innerText();
   expect(JSON.parse(restText)).toEqual({ ...TODO_DATA, userId: seedId });
 
+  // Verify GraphQL API call playback for US variable
+  await page.getByRole('button', { name: 'Fetch GraphQL with US variable' }).click();
+  graphqlLocator = page.locator('[data-test-graphql-data]');
+  await expect(graphqlLocator).toContainText('United States');
+  graphqlText = await graphqlLocator.innerText();
+  expect(JSON.parse(graphqlText)).toEqual({
+    data: { country: { ...COUNTRY_DATA_US, currency: seedId } },
+  });
+
   // Verify GraphQL API call playback for BR variable
   await page.getByRole('button', { name: 'Fetch GraphQL with BR variable' }).click();
   graphqlLocator = page.locator('[data-test-graphql-data]');
@@ -140,8 +173,8 @@ test('serves responses from cassettes without hitting real network', async ({ pa
     data: { country: { ...COUNTRY_DATA_BR, currency: seedId } },
   });
 
-  // Verify GraphQL API call playback for US variable
-  await page.getByRole('button', { name: 'Fetch GraphQL with US variable' }).click();
+  // Verify GraphQL API without operationName playback for US variable
+  await page.getByRole('button', { name: 'GraphQL without operationName' }).click();
   graphqlLocator = page.locator('[data-test-graphql-data]');
   await expect(graphqlLocator).toContainText('United States');
   graphqlText = await graphqlLocator.innerText();

@@ -7,9 +7,10 @@
     <button @click="loadRest">Fetch REST</button>
 
     <h2>GraphQL</h2>
-    <pre v-if="graphqlData" :data-test-graphql-data="graphqlData.data.country.native">{{ graphqlData }}</pre>
+    <pre v-if="graphqlData" :data-test-graphql-data="native">{{ graphqlData }}</pre>
     <button @click="loadGraphql('BR')">Fetch GraphQL with BR variable</button>
     <button @click="loadGraphql('US')">Fetch GraphQL with US variable</button>
+    <button @click="loadNamelessGraphql('US')">GraphQL without operationName</button>
 
     <h2>SSR GraphQL</h2>
     <pre v-if="ssrGraphqlData" data-test-ssr-graphql-data>{{ ssrGraphqlData }}</pre>
@@ -17,10 +18,12 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue';
+import { ref, computed } from 'vue';
 
 const restData = ref<unknown>(null);
 const graphqlData = ref<unknown>(null);
+
+const native = computed(() => graphqlData.value?.data?.country?.native);
 
 async function loadRest() {
   const res = await fetch('https://jsonplaceholder.typicode.com/todos/1');
@@ -34,6 +37,30 @@ async function loadGraphql(code: string) {
     body: JSON.stringify({
       operationName: 'getCountryQuery',
       query: `query getCountryQuery($code: ID!) {
+  country(code: $code) {
+    name
+    native
+    capital
+    emoji
+    currency
+    languages {
+      code
+      name
+    }
+  }
+}`,
+      variables: { code },
+    }),
+  });
+  graphqlData.value = await res.json();
+}
+
+async function loadNamelessGraphql(code: string) {
+  const res = await fetch('https://countries.trevorblades.com/graphql', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      query: `query getMyCountry($code: ID!) {
   country(code: $code) {
     name
     native

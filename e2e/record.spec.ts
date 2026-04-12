@@ -47,6 +47,20 @@ const GRAPHQL_RESPONSE_US = {
   },
 };
 
+const NAMELESS_GRAPHQL_QUERY = `query getMyCountry($code: ID!) {
+  country(code: $code) {
+    name
+    native
+    capital
+    emoji
+    currency
+    languages {
+      code
+      name
+    }
+  }
+}`;
+
 let server: ChildProcess;
 
 test.beforeAll(async () => {
@@ -91,10 +105,13 @@ test('records cassettes for REST and GraphQL api calls', async ({ page }) => {
   await page.getByRole('button', { name: 'Fetch REST' }).click();
   await expect(page.locator('[data-test-rest-data]')).toBeVisible();
 
+  await page.getByRole('button', { name: 'Fetch GraphQL with US variable' }).click();
+  await expect(page.locator('[data-test-graphql-data="United States"]')).toBeVisible();
+
   await page.getByRole('button', { name: 'Fetch GraphQL with BR variable' }).click();
   await expect(page.locator('[data-test-graphql-data="Brasil"]')).toBeVisible();
 
-  await page.getByRole('button', { name: 'Fetch GraphQL with US variable' }).click();
+  await page.getByRole('button', { name: 'GraphQL without operationName' }).click();
   await expect(page.locator('[data-test-graphql-data="United States"]')).toBeVisible();
 
   const brKey = graphqlCassetteKey(
@@ -106,12 +123,16 @@ test('records cassettes for REST and GraphQL api calls', async ({ page }) => {
   const ssrBrKey = graphqlCassetteKey(
     JSON.stringify({ operationName: 'getCountryQuerySsr', variables: { code: 'BR' } }),
   ) as string;
+  const namelessKey = graphqlCassetteKey(
+    JSON.stringify({ query: NAMELESS_GRAPHQL_QUERY, variables: { code: 'US' } }),
+  ) as string;
 
   // Verify cassette files exist
   expect(existsSync(join(EPISODE_DIR, 'rest', 'GET_todos_1.json'))).toBe(true);
   expect(existsSync(join(EPISODE_DIR, 'graphql', `${brKey}.json`))).toBe(true);
   expect(existsSync(join(EPISODE_DIR, 'graphql', `${usKey}.json`))).toBe(true);
   expect(existsSync(join(EPISODE_DIR, 'graphql', `${ssrBrKey}.json`))).toBe(true);
+  expect(existsSync(join(EPISODE_DIR, 'graphql', `${namelessKey}.json`))).toBe(true);
 
   // Verify REST cassette content
   const restCassette = JSON.parse(
@@ -136,6 +157,17 @@ test('records cassettes for REST and GraphQL api calls', async ({ page }) => {
   );
   expect(usCassette).toEqual({
     [usKey]: {
+      ...GRAPHQL_RESPONSE_US,
+      data: { country: { ...GRAPHQL_RESPONSE_US.data.country, currency: seedId } },
+    },
+  });
+
+  // Verify GraphQL without operationName cassette content
+  const namelessCassette = JSON.parse(
+    readFileSync(join(EPISODE_DIR, 'graphql', `${namelessKey}.json`), 'utf-8'),
+  );
+  expect(namelessCassette).toEqual({
+    [namelessKey]: {
       ...GRAPHQL_RESPONSE_US,
       data: { country: { ...GRAPHQL_RESPONSE_US.data.country, currency: seedId } },
     },
