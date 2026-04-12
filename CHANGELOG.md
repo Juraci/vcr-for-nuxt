@@ -1,6 +1,10 @@
 # Changelog
 
 
+## v0.1.9
+
+[compare changes](https://github.com/Juraci/vcr-for-nuxt/compare/v0.1.10...v0.1.9)
+
 ## v0.1.10
 
 [compare changes](https://github.com/Juraci/vcr-for-nuxt/compare/v0.1.9...v0.1.10)
