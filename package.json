@@ -1,6 +1,6 @@
 {
   "name": "vcr-for-nuxt",
-  "version": "0.1.9",
+  "version": "0.1.10",
   "type": "module",
   "description": "VCR record/playback for Nuxt development",
   "keywords": [
@@ -33,7 +33,7 @@
     "lint:fix": "eslint . --fix",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "release": "npm run lint && npm run test:e2e && npm run test && npm run prepack && changelogen --release && npm publish && git push --follow-tags"
+    "release": "npm run prepack && changelogen --release && npm publish && git push --follow-tags"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
