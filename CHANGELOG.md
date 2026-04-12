@@ -1,6 +1,18 @@
 # Changelog
 
 
+## v0.1.9
+
+[compare changes](https://github.com/Juraci/vcr-for-nuxt/compare/v0.1.8...v0.1.9)
+
+### 🚀 Enhancements
+
+- **graphql-key:** Fall back to regex extraction when operationName is absent ([8931400](https://github.com/Juraci/vcr-for-nuxt/commit/8931400))
+
+### ❤️ Contributors
+
+- Juraci ([@Juraci](https://github.com/Juraci))
+
 ## v0.1.8
 
 [compare changes](https://github.com/Juraci/vcr-for-nuxt/compare/v0.1.7...v0.1.8)
