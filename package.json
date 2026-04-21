@@ -3,6 +3,7 @@
   "version": "0.1.11",
   "type": "module",
   "description": "VCR record/playback for Nuxt development",
+  "license": "MIT",
   "keywords": [
     "frontend",
     "test",

@@ -244,3 +244,9 @@ If your app uses `@nuxtjs/axios`, responses through `$axios` are intercepted aut
 
 - Nuxt 3 or 4
 - Node.js 18+
+
+---
+
+## License
+
+[MIT](./LICENSE) © Juraci de Lima Vieira Neto
