@@ -22,6 +22,6 @@ export default defineEventHandler(async (event) => {
     process.cwd(),
     config.vcrCassettesDir ?? ".cassettes"
   );
-  writeCassette(cassettesDir, resolveEpisodeName(), type, key, data);
+  writeCassette(cassettesDir, resolveEpisodeName(event), type, key, data);
   return { recorded: true };
 });

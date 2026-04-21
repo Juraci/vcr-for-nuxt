@@ -1,7 +1,7 @@
 import { resolve } from "node:path";
 import { useRuntimeConfig } from "nitropack/runtime";
 import { createError, defineEventHandler } from "h3";
-import { loadEpisodeCassettes } from "../utils/cassettes.js";
+import { getEpisodeCassettes } from "../utils/cassette-cache.js";
 import { resolveEpisodeName } from "../utils/episode.js";
 export default defineEventHandler((event) => {
   if (!["development", "test"].includes(process.env.NODE_ENV ?? "")) {
@@ -13,6 +13,6 @@ export default defineEventHandler((event) => {
     config.vcrCassettesDir ?? ".cassettes"
   );
   const playback = process.env.VCR_PLAYBACK === "true";
-  const cassettes = playback ? loadEpisodeCassettes(cassettesDir, resolveEpisodeName()) : { graphql: {}, rest: {} };
+  const cassettes = playback ? getEpisodeCassettes(cassettesDir, resolveEpisodeName(event)) : { graphql: {}, rest: {} };
   return { cassettes };
 });

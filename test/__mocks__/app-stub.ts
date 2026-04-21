@@ -7,3 +7,7 @@ export function defineNuxtPlugin(plugin: unknown) {
 export function useRuntimeConfig() {
   return { public: {} };
 }
+
+export function useRequestEvent() {
+  return undefined;
+}

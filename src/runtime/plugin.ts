@@ -1,32 +1,22 @@
 // src/runtime/plugin.ts
 import type { NuxtApp } from '#app';
-import { defineNuxtPlugin, useRuntimeConfig } from '#app';
-import { graphqlCassetteKey } from './graphql-key';
+import { defineNuxtPlugin, useRequestEvent, useRuntimeConfig } from '#app';
+import {
+  createVcrFetch,
+  methodPrefixedKey,
+  urlToFilename,
+  type CassetteStore,
+} from './shared/fetch-interceptor';
 
-export function urlToFilename(url: string): string {
-  const path = url.replace(/^https?:\/\/[^/]+/, '');
-  return path
-    .replace(/[^a-zA-Z0-9-]/g, '_')
-    .replace(/_+/g, '_')
-    .replace(/^_|_$/g, '');
-}
+// Re-exported so existing tests that import from '../src/runtime/plugin' keep working.
+export { urlToFilename, methodPrefixedKey };
 
-export function methodPrefixedKey(method: string, url: string): string {
-  return `${method.toUpperCase()}_${urlToFilename(url)}`;
-}
-
-async function postCassette(
+async function postCassetteViaHttp(
   type: 'graphql' | 'rest',
   key: string,
   data: unknown,
   fetchFn: typeof fetch,
-  serverWriteOpts?: { cassettesDir: string; episode: string },
 ): Promise<void> {
-  if (serverWriteOpts) {
-    const { writeCassette } = await import('./server/utils/cassettes');
-    await writeCassette(serverWriteOpts.cassettesDir, serverWriteOpts.episode, type, key, data);
-    return;
-  }
   try {
     await fetchFn('/api/_cassettes', {
       method: 'POST',
@@ -49,172 +39,118 @@ export default defineNuxtPlugin({
     // Bail out early — zero overhead when VCR is inactive.
     if (!vcrRecord && !vcrPlayback) return;
 
-    // Capture the original fetch *before* wrapping so postCassette and
-    // the cassette loader can use the real network fetch.
+    // Server-side fetch interception is owned by the Nitro plugin (installed
+    // once per process with AsyncLocalStorage-backed per-request episodes).
+    // This Nuxt plugin only wires up the client fetch wrapper and — for both
+    // client and server — the optional axios adapter path.
+
+    // Cassettes the client-side wrappers (fetch + axios) read from. On SSR
+    // this stays empty and the Nitro plugin handles fetch; axios SSR loads
+    // its own episode-scoped store below.
+    const clientStore: CassetteStore = { graphql: {}, rest: {} };
     const originalFetch = globalThis.fetch;
 
-    // Cassette store — populated before fetch wrapper is installed.
-    let graphqlCassettes: Record<string, unknown> = {};
-    let restCassettes: Record<string, unknown> = {};
-
-    if (vcrPlayback) {
-      if (import.meta.server) {
-        // On the server, load cassettes directly from disk — no HTTP roundtrip
-        // needed and relative URLs would fail in the Node.js process anyway.
-        const { loadEpisodeCassettes } = await import('./server/utils/cassettes');
-        const cassettesDir = runtimeConfig.vcrCassettesDir as string;
-        const episode = runtimeConfig.vcrEpisode as string;
-        try {
-          const loaded = await loadEpisodeCassettes(cassettesDir, episode);
-          graphqlCassettes = loaded.graphql;
-          restCassettes = loaded.rest;
-        } catch {
-          // cassettes dir missing or unreadable — playback silently disabled
-        }
-      } else {
-        // On the client, fetch cassettes via the dev API endpoint.
+    if (import.meta.client) {
+      if (vcrPlayback) {
         try {
           const res = await originalFetch('/api/_cassettes');
-          const body = (await res.json()) as {
-            cassettes: {
-              graphql: Record<string, unknown>;
-              rest: Record<string, unknown>;
-            };
-          };
-          graphqlCassettes = body.cassettes?.graphql ?? {};
-          restCassettes = body.cassettes?.rest ?? {};
+          const body = (await res.json()) as { cassettes: CassetteStore };
+          clientStore.graphql = body.cassettes?.graphql ?? {};
+          clientStore.rest = body.cassettes?.rest ?? {};
         } catch {
           // dev endpoint not available — playback silently disabled
         }
       }
+
+      globalThis.fetch = createVcrFetch({
+        originalFetch,
+        getCassettes: () => clientStore,
+        recordCassette: (type, key, data) => {
+          void postCassetteViaHttp(type, key, data, originalFetch);
+        },
+        playback: vcrPlayback,
+        record: vcrRecord,
+      });
     }
-
-    // On the server, pass write options so postCassette bypasses HTTP.
-    const serverWriteOpts =
-      import.meta.server && vcrRecord
-        ? {
-            cassettesDir: runtimeConfig.vcrCassettesDir as string,
-            episode: runtimeConfig.vcrEpisode as string,
-          }
-        : undefined;
-
-    // ── fetch wrapper ──────────────────────────────────────────────────────
-    globalThis.fetch = function vcrFetch(input: RequestInfo | URL, init?: RequestInit) {
-      const url = input instanceof Request ? input.url : String(input);
-      const isGraphql = url.includes('/graphql');
-      const method = (init?.method ?? 'GET').toUpperCase();
-
-      const gqlKey = isGraphql ? graphqlCassetteKey(init?.body) : null;
-      const label = gqlKey ? `${url} (${gqlKey})` : url;
-
-      // GraphQL playback
-      if (gqlKey && vcrPlayback) {
-        if (graphqlCassettes[gqlKey] !== undefined) {
-          console.log(`[vcr][replay] ${label}`);
-          return Promise.resolve(
-            new Response(JSON.stringify(graphqlCassettes[gqlKey]), {
-              status: 200,
-              headers: { 'content-type': 'application/json' },
-            }),
-          );
-        }
-      }
-
-      // REST playback (fetch-based)
-      if (!isGraphql && vcrPlayback) {
-        const key = methodPrefixedKey(method, url);
-        if (restCassettes[key] !== undefined) {
-          console.log(`[vcr][replay] ${label}`);
-          return Promise.resolve(
-            new Response(JSON.stringify(restCassettes[key]), {
-              status: 200,
-              headers: { 'content-type': 'application/json' },
-            }),
-          );
-        }
-      }
-
-      const responsePromise = originalFetch(input, init);
-
-      // GraphQL recording
-      if (gqlKey && vcrRecord) {
-        responsePromise.then((response) =>
-          response
-            .clone()
-            .json()
-            .then((data) => postCassette('graphql', gqlKey, data, originalFetch, serverWriteOpts))
-            .catch(() => {}),
-        );
-      }
-
-      // REST recording (fetch-based, JSON only)
-      if (!isGraphql && vcrRecord) {
-        const key = methodPrefixedKey(method, url);
-        responsePromise.then((response) => {
-          const contentType = response.headers.get('content-type') ?? '';
-          if (!contentType.includes('application/json')) return;
-          response
-            .clone()
-            .json()
-            .then((data) => postCassette('rest', key, data, originalFetch, serverWriteOpts))
-            .catch(() => {});
-        });
-      }
-
-      return responsePromise;
-    };
 
     // ── Axios interception ─────────────────────────────────────────────────
     // Conditional: only wire up if $axios is provided by the consuming app.
+    // Runs on both server and client. `$axios` is injected per-request, so
+    // mutating `defaults.adapter` here is safe across concurrent SSR requests.
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const $axios = (nuxtApp as any).$axios;
-    if ($axios) {
-      const originalAdapter = $axios.defaults.adapter;
+    if (!$axios) return;
 
-      $axios.defaults.adapter = async (config: {
-        baseURL?: string;
-        url?: string;
-        method?: string;
-        [key: string]: unknown;
-      }) => {
-        const baseURL = config.baseURL ?? '';
-        const url = config.url ?? '';
-        const fullUrl = url.startsWith('http') ? url : `${baseURL}${url}`;
-        const method = (config.method ?? 'get').toUpperCase();
-        const key = methodPrefixedKey(method, fullUrl);
+    // Per-SSR-request episode resolution (cookie/header/env/date). `useRequestEvent`
+    // returns the current request's H3Event, which this setup closes over for
+    // all subsequent axios adapter/onResponse invocations within the request.
+    const ssrEvent = import.meta.server ? useRequestEvent() : undefined;
+    const cassettesDir = runtimeConfig.vcrCassettesDir as string | undefined;
 
-        if (vcrPlayback && restCassettes[key] !== undefined) {
-          console.log(`[vcr][replay] ${fullUrl}`);
-          return {
-            data: restCassettes[key],
-            status: 200,
-            statusText: 'OK',
-            headers: { 'content-type': 'application/json' },
-            config,
-            request: {},
-          };
-        }
-        return originalAdapter(config);
-      };
-
-      $axios.onResponse(
-        (response: {
-          config: { baseURL?: string; url?: string; method?: string };
-          headers: Record<string, string>;
-          data: unknown;
-        }) => {
-          if (!vcrRecord) return response;
-          const contentType = response.headers['content-type'] ?? '';
-          if (!contentType.includes('application/json')) return response;
-          const baseURL = response.config.baseURL ?? '';
-          const url = response.config.url ?? '';
-          const fullUrl = url.startsWith('http') ? url : `${baseURL}${url}`;
-          const method = (response.config.method ?? 'get').toUpperCase();
-          const key = methodPrefixedKey(method, fullUrl);
-          postCassette('rest', key, response.data, originalFetch, serverWriteOpts).catch(() => {});
-          return response;
-        },
-      );
+    let serverRestStore: Record<string, unknown> = {};
+    if (import.meta.server && vcrPlayback && cassettesDir) {
+      const { resolveEpisodeName } = await import('./server/utils/episode');
+      const { getEpisodeCassettes } = await import('./server/utils/cassette-cache');
+      const episode = resolveEpisodeName(ssrEvent);
+      serverRestStore = getEpisodeCassettes(cassettesDir, episode).rest;
     }
+
+    async function recordAxios(type: 'rest', key: string, data: unknown) {
+      if (import.meta.server && cassettesDir) {
+        const { resolveEpisodeName } = await import('./server/utils/episode');
+        const { writeCassette } = await import('./server/utils/cassettes');
+        writeCassette(cassettesDir, resolveEpisodeName(ssrEvent), type, key, data);
+        return;
+      }
+      await postCassetteViaHttp(type, key, data, originalFetch);
+    }
+
+    const originalAdapter = $axios.defaults.adapter;
+
+    $axios.defaults.adapter = async (config: {
+      baseURL?: string;
+      url?: string;
+      method?: string;
+      [key: string]: unknown;
+    }) => {
+      const baseURL = config.baseURL ?? '';
+      const url = config.url ?? '';
+      const fullUrl = url.startsWith('http') ? url : `${baseURL}${url}`;
+      const method = (config.method ?? 'get').toUpperCase();
+      const key = methodPrefixedKey(method, fullUrl);
+      const store = import.meta.server ? serverRestStore : clientStore.rest;
+
+      if (vcrPlayback && store[key] !== undefined) {
+        console.log(`[vcr][replay] ${fullUrl}`);
+        return {
+          data: store[key],
+          status: 200,
+          statusText: 'OK',
+          headers: { 'content-type': 'application/json' },
+          config,
+          request: {},
+        };
+      }
+      return originalAdapter(config);
+    };
+
+    $axios.onResponse(
+      (response: {
+        config: { baseURL?: string; url?: string; method?: string };
+        headers: Record<string, string>;
+        data: unknown;
+      }) => {
+        if (!vcrRecord) return response;
+        const contentType = response.headers['content-type'] ?? '';
+        if (!contentType.includes('application/json')) return response;
+        const baseURL = response.config.baseURL ?? '';
+        const url = response.config.url ?? '';
+        const fullUrl = url.startsWith('http') ? url : `${baseURL}${url}`;
+        const method = (response.config.method ?? 'get').toUpperCase();
+        const key = methodPrefixedKey(method, fullUrl);
+        recordAxios('rest', key, response.data).catch(() => {});
+        return response;
+      },
+    );
   },
 });

@@ -1,5 +1,11 @@
 // src/module.ts
-import { addPlugin, addServerHandler, createResolver, defineNuxtModule } from '@nuxt/kit';
+import {
+  addPlugin,
+  addServerHandler,
+  addServerPlugin,
+  createResolver,
+  defineNuxtModule,
+} from '@nuxt/kit';
 
 export interface ModuleOptions {
   /** Enable cassette recording. Defaults to VCR_RECORD env var. */
@@ -41,9 +47,29 @@ export default defineNuxtModule<ModuleOptions>({
     // Nothing to register when VCR is completely inactive.
     if (!record && !playback) return;
 
+    // Required for the Nitro plugin's useEvent() to retrieve the current H3
+    // request from inside the globalThis.fetch wrapper. Without this, the
+    // fetch wrapper can't resolve the per-request episode cookie. The Nuxt
+    // schema in this version doesn't expose `nitro` on NuxtOptions at the
+    // type level, so cast once and set both sides (Nuxt + Nitro).
+    nuxt.options.experimental = nuxt.options.experimental ?? {};
+    nuxt.options.experimental.asyncContext = true;
+    const nuxtOpts = nuxt.options as unknown as {
+      nitro?: { experimental?: { asyncContext?: boolean } };
+    };
+    nuxtOpts.nitro = nuxtOpts.nitro ?? {};
+    nuxtOpts.nitro.experimental = nuxtOpts.nitro.experimental ?? {};
+    nuxtOpts.nitro.experimental.asyncContext = true;
+
     const { resolve } = createResolver(import.meta.url);
 
     addPlugin(resolve('./runtime/plugin'));
+
+    // Nitro plugin: installs the server-side globalThis.fetch wrapper exactly
+    // once per Nitro process and threads per-request episode context through
+    // AsyncLocalStorage. Without this, concurrent SSR requests with different
+    // episodes would race on the process-global fetch.
+    addServerPlugin(resolve('./runtime/server/plugins/vcr'));
 
     addServerHandler({
       route: '/api/_cassettes',

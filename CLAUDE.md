@@ -26,16 +26,24 @@ There is a lint script configured.
 The module has three layers that work together:
 
 **1. Module (`src/module.ts`)**
-Reads `VCR_RECORD`, `VCR_PLAYBACK`, and `VCR_EPISODE` env vars at build time. Exposes `runtimeConfig.public.vcr` (record/playback flags, client-readable), `runtimeConfig.vcrCassettesDir`, and `runtimeConfig.vcrEpisode` (server-only). Registers the universal plugin and two Nitro server routes only when VCR is active — zero overhead otherwise.
+Reads `VCR_RECORD`, `VCR_PLAYBACK`, and `VCR_EPISODE` env vars at build time. Exposes `runtimeConfig.public.vcr` (record/playback flags, client-readable), `runtimeConfig.vcrCassettesDir`, and `runtimeConfig.vcrEpisode` (server-only, used as a fallback). Enables Nuxt + Nitro `experimental.asyncContext` so the Nitro plugin's `useEvent()` resolves inside SSR fetches. Registers the universal plugin, the Nitro server plugin, and two Nitro server routes only when VCR is active — zero overhead otherwise.
 
 **2. Client Plugin (`src/runtime/plugin.ts`)**
-Wraps `globalThis.fetch` (and optionally Axios). On every request:
+Client-only `globalThis.fetch` wrapping (and optionally Axios on both sides). On every request:
 - Detects GraphQL by URL pattern, keyed by `graphqlCassetteKey(operationName, variables)` (see below)
 - Keys REST cassettes as `{METHOD}_{normalized_path}` (e.g. `GET_api_v1_users_1`)
-- **Playback:** Looks up in-memory cassette store loaded at plugin init via `GET /api/_cassettes`
+- **Playback:** Looks up in-memory cassette store loaded at plugin init via `GET /api/_cassettes` (the GET handler uses the request cookie/header so the right episode lands in the client store).
 - **Record:** Lets real request through, clones response JSON, POSTs to `POST /api/_cassettes`
 
-URL normalization (`urlToFilename`) strips protocol/host, converts slashes and query params to underscores, collapses multiple underscores.
+Axios SSR recording stays in this plugin because `$axios` is per-request-injected; the plugin captures `useRequestEvent()` during its per-request setup and passes the resolved episode to `writeCassette` directly.
+
+Keying helpers (`urlToFilename`, `methodPrefixedKey`) live in `src/runtime/shared/fetch-interceptor.ts` and are re-exported from `plugin.ts` for backward-compatible test imports.
+
+**2a. Shared Fetch Interceptor (`src/runtime/shared/fetch-interceptor.ts`)**
+Pure module (no Nuxt/Nitro imports). Exports `createVcrFetch(opts)` which builds the wrapper used by both the client plugin and the server-side Nitro plugin, plus `urlToFilename` and `methodPrefixedKey`. The returned function is named `vcrFetch` so tests can assert `window.fetch.name === 'vcrFetch'`.
+
+**2b. Nitro Server Plugin (`src/runtime/server/plugins/vcr.ts`)**
+Installs `globalThis.fetch = vcrFetch` **exactly once** per Nitro process. On each fetch call it reads the current request via Nitro's `useEvent()` (ALS-backed by unctx) and resolves the active episode from that event's cookie/header. This avoids the stacking-wrapper race the old per-request Nuxt SSR path had when different requests asked for different episodes concurrently.
 
 **2a. GraphQL Key Utility (`src/runtime/graphql-key.ts`)**
 Pure module (no Nuxt imports) — usable in the plugin, server routes, and test/e2e files.
@@ -48,12 +56,13 @@ Pure module (no Nuxt imports) — usable in the plugin, server routes, and test/
 - `_cassettes.post.ts` — Thin handler; validates key (regex `[\w-]+`), delegates to `writeCassette()` from utils. 400s if `VCR_RECORD !== 'true'`, 404s outside development mode.
 
 **4. Server Utils (`src/runtime/server/utils/`)**
-- `episode.ts` — `resolveEpisodeName()`: returns `VCR_EPISODE` env var or `dd-mm-yyyy` date fallback.
+- `episode.ts` — `resolveEpisodeName(event?)`: precedence is cookie (`vcr-episode`) → header (`x-vcr-episode`) → `VCR_EPISODE` env var → `dd-mm-yyyy` date fallback. Every candidate is validated against `EPISODE_NAME_REGEX` (exported); invalid values are silently skipped so a malformed cookie never crashes the dev server.
+- `cassette-cache.ts` — `getEpisodeCassettes(cassettesDir, episode)`: thin cache layer over `loadEpisodeCassettes`. Module-scope `Map` keyed by `${cassettesDir}::${episode}`; no invalidation (record and playback are mutually exclusive). Exposes `__resetCassetteCacheForTests()` for unit tests.
 - `cassettes.ts` — Pure FS functions: `loadDir`, `loadEpisodeCassettes`, `writeCassette`. No Nitro imports — directly testable.
 
 ### Cassette Storage
 
-Cassettes are grouped into **episodes** — named snapshots. The active episode comes from `VCR_EPISODE` env var, falling back to today's date (`dd-mm-yyyy`).
+Cassettes are grouped into **episodes** — named snapshots. The active episode is resolved per request by `resolveEpisodeName(event)`: `vcr-episode` cookie → `x-vcr-episode` header → `VCR_EPISODE` env var → today's date (`dd-mm-yyyy`). E2E tools can switch scenarios per test by setting the cookie (`context.addCookies` in Playwright, `cy.setCookie` in Cypress) without restarting the dev server.
 
 ```
 .cassettes/
@@ -80,12 +89,19 @@ Tests live in `test/` and use Vitest with a Node environment. The mock at `test/
 
 Integration tests use real temp directories (`os.tmpdir()`) — no mocking of file I/O. The pure functions in `src/runtime/server/utils/cassettes.ts` and `utils/episode.ts` are tested directly to keep Nitro-specific wiring out of the test surface.
 
+End-to-end tests live in `e2e/` and use Playwright against a real dev server spawned by `startDevServer` (see `e2e/helpers/server.ts`). Each spec owns a dev-server lifecycle in `beforeAll`/`afterAll`, so specs must serialize (`workers: 1`). The `dynamic-episode-*.spec.ts` specs deliberately omit `VCR_EPISODE` from `startDevServer` — the per-test `vcr-episode` cookie is the only episode signal, which is exactly the behavior they exist to prove. Set `VCR_E2E_LOG=/tmp/dev.log` before running to pipe the dev server's stdout/stderr to a file for debugging.
+
 | Test file | What it covers |
 |---|---|
 | `test/filename.test.ts` | URL normalization, method-prefixed key generation, `graphqlCassetteKey` (variables hashing) |
-| `test/episode.test.ts` | Episode name resolution (env var vs date fallback) |
+| `test/episode.test.ts` | Episode name resolution (cookie/header/env/date precedence) and `EPISODE_NAME_REGEX` validation |
+| `test/cassette-cache.test.ts` | `getEpisodeCassettes` — cache hit/miss, per-episode isolation |
 | `test/cassettes-get.test.ts` | `loadDir`, `loadEpisodeCassettes` with real FS |
 | `test/cassettes-post.test.ts` | `writeCassette` — file creation, index.js lifecycle, episode isolation |
+| `e2e/playback.spec.ts` | Env-driven playback — legacy path, proves `VCR_EPISODE` fallback still works |
+| `e2e/record.spec.ts` | Env-driven record — legacy path, proves `VCR_EPISODE` fallback still works |
+| `e2e/dynamic-episode-playback.spec.ts` | Cookie-driven playback: one dev server (no `VCR_EPISODE`), two scenarios (`dynamic-scenario-a`/`-b`) each with its own `crypto.randomUUID()` seed threaded as GraphQL `currency` and REST `userId`; SSR + all four playground buttons asserted per scenario |
+| `e2e/dynamic-episode-record.spec.ts` | Cookie-driven record: one dev server (no `VCR_EPISODE`), two scenarios (`dynamic-record-a`/`-b`) with `page.route()` stubs carrying per-scenario seedIds; verifies each cassette file lands in its own episode directory and its on-disk content matches the scenario's seedId. SSR GraphQL cassette existence is asserted in the right directory; its content hits the real upstream (same `page.route()` SSR limitation as `record.spec.ts`) |
 
 ### Verification
 

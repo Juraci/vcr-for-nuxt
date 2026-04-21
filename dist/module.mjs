@@ -1,4 +1,4 @@
-import { defineNuxtModule, createResolver, addPlugin, addServerHandler } from '@nuxt/kit';
+import { defineNuxtModule, createResolver, addPlugin, addServerPlugin, addServerHandler } from '@nuxt/kit';
 
 const module$1 = defineNuxtModule({
   meta: {
@@ -20,8 +20,15 @@ const module$1 = defineNuxtModule({
     nuxt.options.runtimeConfig.vcrCassettesDir = cassettesDir;
     nuxt.options.runtimeConfig.vcrEpisode = episode;
     if (!record && !playback) return;
+    nuxt.options.experimental = nuxt.options.experimental ?? {};
+    nuxt.options.experimental.asyncContext = true;
+    const nuxtOpts = nuxt.options;
+    nuxtOpts.nitro = nuxtOpts.nitro ?? {};
+    nuxtOpts.nitro.experimental = nuxtOpts.nitro.experimental ?? {};
+    nuxtOpts.nitro.experimental.asyncContext = true;
     const { resolve } = createResolver(import.meta.url);
     addPlugin(resolve("./runtime/plugin"));
+    addServerPlugin(resolve("./runtime/server/plugins/vcr"));
     addServerHandler({
       route: "/api/_cassettes",
       method: "get",

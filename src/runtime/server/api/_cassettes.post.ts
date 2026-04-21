@@ -33,7 +33,7 @@ export default defineEventHandler(async (event) => {
     (config.vcrCassettesDir as string | undefined) ?? '.cassettes',
   );
 
-  writeCassette(cassettesDir, resolveEpisodeName(), type, key, data);
+  writeCassette(cassettesDir, resolveEpisodeName(event), type, key, data);
 
   return { recorded: true };
 });

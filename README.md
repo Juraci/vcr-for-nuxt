@@ -12,7 +12,7 @@ Works with both `fetch`-based requests (including Apollo/GraphQL) and Axios (`@n
 - **Playback mode** — intercepts requests before they go out and returns the saved cassette instead. Zero network traffic.
 - **Both off** — the module is completely inert. No overhead, no code loaded.
 
-Cassettes are grouped into **episodes** — named snapshots stored under `.cassettes/episodes/`. The active episode is set via `VCR_EPISODE`; if omitted it defaults to today's date (`dd-mm-yyyy`).
+Cassettes are grouped into **episodes** — named snapshots stored under `.cassettes/episodes/`. The active episode is resolved per request in this order: `vcr-episode` cookie → `x-vcr-episode` header → `VCR_EPISODE` env var → today's date (`dd-mm-yyyy`). That means a single dev server can serve different episodes to different tests without a restart — see [Dynamic episode in tests](#dynamic-episode-in-tests).
 
 ```
 .cassettes/
@@ -180,6 +180,47 @@ import cassettes from './.cassettes/episodes/my-feature/index.js';
 ```
 
 The file is written once (on the first cassette POST) and never overwritten — safe to commit and edit manually if needed.
+
+---
+
+## Dynamic episode in tests
+
+End-to-end tools like Playwright and Cypress can switch scenarios mid-session without restarting the dev server. Start one server in playback mode (no `VCR_EPISODE` needed) and have each test set the `vcr-episode` cookie — or `x-vcr-episode` header — before it navigates. Both client fetches and SSR renders honor the per-request episode.
+
+**Playwright**
+
+```ts
+import { test } from '@playwright/test';
+
+test('scenario A', async ({ page, context, baseURL }) => {
+  await context.addCookies([
+    { name: 'vcr-episode', value: 'scenario-a', url: baseURL! },
+  ]);
+  await page.goto('/');
+  // ...assert scenario A's data
+});
+
+test('scenario B', async ({ page, context, baseURL }) => {
+  await context.addCookies([
+    { name: 'vcr-episode', value: 'scenario-b', url: baseURL! },
+  ]);
+  await page.goto('/');
+  // ...assert scenario B's data
+});
+```
+
+**Cypress**
+
+```ts
+describe('scenario A', () => {
+  beforeEach(() => cy.setCookie('vcr-episode', 'scenario-a'));
+  it('renders A', () => cy.visit('/'));
+});
+```
+
+**Any HTTP client** — attach `Cookie: vcr-episode=<episode>` or `X-VCR-Episode: <episode>`.
+
+The env var still works as a process-wide fallback, so existing `VCR_EPISODE=... nuxi dev` setups keep functioning unchanged. Episode names are validated against `/^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$/`; invalid values are silently ignored (so a stale cookie never crashes the server).
 
 ---
 

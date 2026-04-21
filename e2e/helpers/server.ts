@@ -1,15 +1,20 @@
+import { openSync } from 'fs';
 import { spawn, ChildProcess } from 'child_process';
 
 export async function startDevServer(
   env: Record<string, string>,
   timeout = 80_000,
 ): Promise<ChildProcess> {
+  // Opt-in debug logging: set VCR_E2E_LOG=/path/to/log.txt to capture the dev
+  // server's stdout/stderr. Useful when an e2e failure needs Nuxt-side context.
+  const logFile = process.env.VCR_E2E_LOG;
+  const outFd = logFile ? openSync(logFile, 'a') : undefined;
   const proc = spawn('npm', ['run', 'dev'], {
     env: { ...process.env, ...env },
     cwd: process.cwd(),
-    // 'ignore' prevents the pipe buffer from filling up (nuxt dev is chatty) and
-    // blocking the child process when the parent doesn't drain the pipes.
-    stdio: 'ignore',
+    // Default: 'ignore' keeps the (chatty) nuxt dev output from filling the
+    // pipe buffer and blocking the child when the parent doesn't drain.
+    stdio: outFd ? ['ignore', outFd, outFd] : 'ignore',
     // Creates a new process group with npm as the leader (pgid = proc.pid).
     // Required so stopDevServer can kill the entire group (npm + shell + nuxt dev).
     detached: true,

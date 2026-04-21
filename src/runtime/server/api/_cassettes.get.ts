@@ -2,7 +2,7 @@
 import { resolve } from 'node:path';
 import { useRuntimeConfig } from 'nitropack/runtime';
 import { createError, defineEventHandler } from 'h3';
-import { loadEpisodeCassettes } from '../utils/cassettes';
+import { getEpisodeCassettes } from '../utils/cassette-cache';
 import { resolveEpisodeName } from '../utils/episode';
 
 export default defineEventHandler((event) => {
@@ -18,9 +18,11 @@ export default defineEventHandler((event) => {
 
   const playback = process.env.VCR_PLAYBACK === 'true';
 
-  // Only read disk when playback is active — skip the I/O otherwise.
+  // Only read disk when playback is active — skip the I/O otherwise. Episode
+  // is resolved from the incoming request (cookie/header) with fallbacks, and
+  // cassettes are cached per-episode for the process lifetime.
   const cassettes = playback
-    ? loadEpisodeCassettes(cassettesDir, resolveEpisodeName())
+    ? getEpisodeCassettes(cassettesDir, resolveEpisodeName(event))
     : { graphql: {}, rest: {} };
 
   return { cassettes };
