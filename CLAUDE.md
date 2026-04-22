@@ -102,16 +102,3 @@ End-to-end tests live in `e2e/` and use Playwright against a real dev server spa
 | `e2e/record.spec.ts` | Env-driven record — legacy path, proves `VCR_EPISODE` fallback still works |
 | `e2e/dynamic-episode-playback.spec.ts` | Cookie-driven playback: one dev server (no `VCR_EPISODE`), two scenarios (`dynamic-scenario-a`/`-b`) each with its own `crypto.randomUUID()` seed threaded as GraphQL `currency` and REST `userId`; SSR + all four playground buttons asserted per scenario |
 | `e2e/dynamic-episode-record.spec.ts` | Cookie-driven record: one dev server (no `VCR_EPISODE`), two scenarios (`dynamic-record-a`/`-b`) with `page.route()` stubs carrying per-scenario seedIds; verifies each cassette file lands in its own episode directory and its on-disk content matches the scenario's seedId. SSR GraphQL cassette existence is asserted in the right directory; its content hits the real upstream (same `page.route()` SSR limitation as `record.spec.ts`) |
-
-### Verification
-
-After any change it's critical to always run the following checks:
-
-`nvm use` // set the node to the correct version
-`npm install` // should install all packages without errors
-`npm run test` // all tests must pass
-`npm run test:e2e` // all end 2 end tests must pass
-`npm run lint` // there should be no lint errors
-`npm run lint:fix` // in case there are easy to fix lint errors
-`npx tsc` // there should be no typescript errors
-`npm run prepack` // should build without errors
